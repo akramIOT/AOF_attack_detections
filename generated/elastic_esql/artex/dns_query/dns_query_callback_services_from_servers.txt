@@ -1,0 +1,3 @@
+# DNS Query to Request Collection or DNS Callback Services
+# Sigma id 68a5326b-3c56-5371-bfd7-2cd1bda49314, pipeline ecs_windows
+from * metadata _id, _index, _version | where ends_with(QueryName, "webhook.site") or ends_with(QueryName, ".dnslog.cn") or ends_with(QueryName, ".interact.sh") or ends_with(QueryName, ".oast.fun") or ends_with(QueryName, ".requestcatcher.com") or ends_with(QueryName, ".pipedream.net")

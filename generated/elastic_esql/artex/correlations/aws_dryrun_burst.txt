@@ -1,0 +1,5 @@
+# Burst of EC2 DryRun Calls From One Identity
+# Sigma id 0786eda9-e147-504c-8520-874a7562ee4b, pipeline ecs_windows
+from * metadata _id, _index, _version | where eventSource=="ec2.amazonaws.com" and errorCode=="Client.DryRunOperation"
+| eval timebucket=date_trunc(5minutes, @timestamp) | stats event_count=count() by timebucket, userIdentity.arn
+| where event_count >= 10

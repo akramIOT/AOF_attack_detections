@@ -1,0 +1,3 @@
+# DNS Query for Skimmer or C2 Hosts of the Hermes, Strix and Cairn Card-Theft Campaign
+# Sigma id e47416c6-ec5f-563e-9c1e-c92ae41e141f, pipeline ecs_windows
+from * metadata _id, _index, _version | where ends_with(QueryName, "medbooksource.com") or ends_with(QueryName, "traffic-analyzer.net") or ends_with(QueryName, "b8t.shop") or ends_with(QueryName, "netlfjs.com") or ends_with(QueryName, "x1opay.co") or ends_with(QueryName, "static-js.com") or ends_with(QueryName, "js-static.com") or ends_with(QueryName, "jsnetlify.com") or ends_with(QueryName, "netlifyjs.com") or ends_with(QueryName, "newssjs.com")

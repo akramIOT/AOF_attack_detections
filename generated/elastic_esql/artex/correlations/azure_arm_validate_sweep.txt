@@ -1,0 +1,5 @@
+# Azure Resource Manager Validate Sweep
+# Sigma id 0a62aff2-8b75-5648-88d8-3778b26c17c7, pipeline ecs_windows
+from * metadata _id, _index, _version | where ends_with(operationName, "/deployments/validate/action")
+| eval timebucket=date_trunc(1minutes, @timestamp) | stats event_count=count() by timebucket, caller
+| where event_count >= 5

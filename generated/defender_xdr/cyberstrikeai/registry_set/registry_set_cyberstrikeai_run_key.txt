@@ -1,0 +1,4 @@
+# CyberStrikeAI Implant Run Key Value SystemUpdate
+# Sigma id 5dbb150e-eefe-5b43-96ae-b374d59417f1, pipeline microsoft_xdr
+DeviceRegistryEvents
+| where RegistryKey endswith "\\CurrentVersion\\Run\\SystemUpdate"

@@ -1,0 +1,5 @@
+# AWS Access Denied Sweep Across Many APIs
+# Sigma id 8826ae5f-27a0-5062-9cd5-4b14e969fa2c, pipeline ecs_windows
+from * metadata _id, _index, _version | where errorCode in ("AccessDenied", "AccessDeniedException", "UnauthorizedOperation", "Client.UnauthorizedOperation")
+| eval timebucket=date_trunc(10minutes, @timestamp) | stats value_count=count_distinct(eventName) by timebucket, userIdentity.arn
+| where value_count >= 15

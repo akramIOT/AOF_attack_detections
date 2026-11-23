@@ -1,0 +1,3 @@
+# ARTEX OAuth Callback Probe
+# Sigma id 8b1108e8-89db-53a6-a4e6-0486b5d4fd7d, pipeline ecs_windows
+from * metadata _id, _index, _version | where `cs-uri-query` like "*code=AAAA&state=notvalidb64!!*"

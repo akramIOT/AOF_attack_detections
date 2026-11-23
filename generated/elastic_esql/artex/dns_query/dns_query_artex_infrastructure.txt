@@ -1,0 +1,3 @@
+# DNS Query for Reported ARTEX Infrastructure
+# Sigma id 7229e832-84df-55f9-b5bc-3d9591d5abbb, pipeline ecs_windows
+from * metadata _id, _index, _version | where QueryName in ("nginxmysql.com", "sqlserver-sqlite.com", "www.ddduuuppp.com") or ends_with(QueryName, "artex.lol") or ends_with(QueryName, "artex.tokena2b.top") or ends_with(QueryName, "artex.ok7777.eu.cc") or ends_with(QueryName, "artex.noog2infra.site")

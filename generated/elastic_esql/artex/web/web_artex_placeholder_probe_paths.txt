@@ -1,0 +1,3 @@
+# ARTEX Placeholder Probe Paths
+# Sigma id a3f72892-cf08-5127-acdd-8734b1e8a83b, pipeline ecs_windows
+from * metadata _id, _index, _version | where `cs-uri-stem` like "*/zzz-nonexistent-xyz123*" or `cs-uri-stem` like "*zzz_nonexistent_abc.txt*" or `cs-uri-stem` like "*Notexist-xyz*"

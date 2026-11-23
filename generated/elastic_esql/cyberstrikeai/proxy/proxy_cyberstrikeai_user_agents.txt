@@ -1,0 +1,3 @@
+# CyberStrikeAI User Agents or Implant Check-in in Proxy Logs
+# Sigma id f8900a2b-5be3-5f5b-b701-c0f420ecef95, pipeline ecs_windows
+from * metadata _id, _index, _version | where starts_with(HttpUserAgent, "CyberStrikeAI/") or starts_with(HttpUserAgent, "CyberStrikeAI-Docker-build") or HttpUserAgent like "*CyberStrikeAI-WebShell/*" or HttpUserAgent=="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"

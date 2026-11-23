@@ -1,0 +1,3 @@
+# App Role or Directory Role Assigned to a Service Principal
+# Sigma id 59f151fc-fee8-523a-9c2d-bbae3a0673f3, pipeline ecs_windows
+from * metadata _id, _index, _version | where properties.message in ("Add app role assignment to service principal", "Add member to role")

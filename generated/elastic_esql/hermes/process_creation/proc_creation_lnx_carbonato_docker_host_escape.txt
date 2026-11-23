@@ -1,0 +1,3 @@
+# Carbonato Docker Worm Host Escape or Persistence
+# Sigma id 59355a64-b6fd-5c50-8370-eea0f297294c, pipeline ecs_windows
+from * metadata _id, _index, _version | where TargetProcessCommandLine like "*nsenter*" and TargetProcessCommandLine like "*-t 1*" and TargetProcessCommandLine like "*-m -u -n -i*" or TargetProcessCommandLine like "*netns-probe*" or TargetProcessCommandLine like "*system/resolved*" or TargetProcessCommandLine like "*.docker-network-monitor*" or TargetProcessCommandLine like "*/opt/gh0st/*" or TargetProcessCommandLine like "*CARBONATO_API_KEY*" or TargetProcessName=="/usr/sbin/systemd-logind"

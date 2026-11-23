@@ -1,0 +1,3 @@
+# HexStrike Server or MCP Client Process
+# Sigma id 23f271ff-3e26-57ca-81ec-347c96db618e, pipeline ecs_windows
+from * metadata _id, _index, _version | where TargetProcessCommandLine like "*hexstrike_server.py*" or TargetProcessCommandLine like "*hexstrike_mcp.py*" or ActingProcessCommandLine like "*hexstrike_server.py*"

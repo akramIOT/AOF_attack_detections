@@ -1,0 +1,3 @@
+# Strix Telemetry or Results Viewer API in Proxy Logs
+# Sigma id f1843b28-3a9b-53c5-9f55-ca93f9d46d01, pipeline ecs_windows
+from * metadata _id, _index, _version | where ends_with(HttpHost, "strix.gateway.scarf.sh") or Url like "*/api/agents/steer*"
