@@ -1,0 +1,36 @@
+// Metronomic request rates that match the ARTEX noise profiles
+// ARTEX detections by ThreatDefence. Source: https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// Example hunt for Microsoft Sentinel. Test and baseline before alerting.
+// From the ARTEX source code. An operator who wants to stay quiet turns on a noise profile (ARTEX_NOISE_PROFILE or the
+// Target noise card). The egress governor then paces requests per host with a token bucket and a small uniform jitter of
+// at most min(jitter/rate, 250 ms) (egress/egress.go:50-57): quiet = 2 requests a second (gaps of 500 to 750 ms),
+// balanced = 5 (200 to 240 ms), aggressive = 20 (50 to 55 ms). The agents are also handed matching scanner flags such as
+// nmap "-T2 --max-rate 2 --max-retries 2", ffuf "-rate 2 -t 1" and sqlmap "--delay=0.5 --threads=1"
+// (agent/noise_profile.go:56-67). The result is a source that hits one host every second of a long window at an almost
+// fixed rate. People never do that, and most scanners run faster and burstier.
+// Web logs usually keep whole seconds, so this hunt uses requests per second rather than gaps. The default profile is
+// off, so this only finds operators who chose to be careful. Rates are fixed in code, but a rebuild can change them.
+
+let Window = 7d;
+let Web = union isfuzzy=true
+    (CommonSecurityLog | where TimeGenerated > ago(Window) and isnotempty(RequestURL)
+        | project TimeGenerated, Src=SourceIP, Host=DestinationHostName, UA=RequestClientApplication),
+    (W3CIISLog | where TimeGenerated > ago(Window)
+        | project TimeGenerated, Src=cIP, Host=csHost, UA=csUserAgent);
+Web
+| summarize PerSecond=count(), UAs=make_set(UA, 5) by Src, Host, Second=bin(TimeGenerated, 1s)
+| summarize ActiveSeconds=count(), Requests=sum(PerSecond), MeanRps=avg(PerSecond), StdevRps=stdev(PerSecond),
+    MaxRps=max(PerSecond), UAs=make_set(UAs, 10) by Src, Host, Window10m=bin(Second, 10m)
+// Busy in at least 80% of the 600 seconds, with almost no spread around the mean.
+| where ActiveSeconds >= 480 and StdevRps <= 0.8
+| extend Profile = case(
+    MeanRps between (1.2 .. 2.1) and MaxRps <= 4, "quiet (2/s)",
+    MeanRps between (4.0 .. 5.2) and MaxRps <= 10, "balanced (5/s)",
+    MeanRps between (17.0 .. 20.5) and MaxRps <= 40, "aggressive (20/s)",
+    "")
+| where isnotempty(Profile)
+| summarize Windows=count(), Requests=sum(Requests), Profiles=make_set(Profile), UAs=make_set(UAs, 10),
+    FirstSeen=min(Window10m), LastSeen=max(Window10m) by Src, Host
+// Two paced windows or more. Exclude your own monitoring and uptime checkers here.
+| where Windows >= 2
+| order by Windows desc

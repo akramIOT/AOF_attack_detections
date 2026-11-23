@@ -1,0 +1,13 @@
+// Web or database service starting a shell or download tool (Elastic Defend, Auditbeat or Sysmon via Elastic Agent)
+// ARTEX detections by ThreatDefence. https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// ES|QL hunt using ECS fields. Change the index pattern to match your data streams and baseline before alerting.
+FROM logs-endpoint.events.process-*, logs-windows.sysmon_operational-*, auditbeat-*
+| WHERE @timestamp > NOW() - 14 days AND event.type == "start"
+| WHERE process.parent.name IN ("nginx", "httpd", "apache2", "php-fpm", "java", "node", "mysqld", "mariadbd", "postgres",
+    "w3wp.exe", "httpd.exe", "java.exe", "node.exe", "php-cgi.exe", "sqlservr.exe", "mysqld.exe")
+    OR process.parent.name LIKE "php-fpm*" OR process.parent.name LIKE "tomcat*"
+| WHERE process.name IN ("sh", "bash", "dash", "curl", "wget", "nc", "ncat", "socat", "busybox",
+    "cmd.exe", "powershell.exe", "pwsh.exe", "curl.exe", "certutil.exe", "bitsadmin.exe", "whoami.exe", "tasklist.exe")
+| STATS starts = COUNT(*), command_lines = VALUES(process.command_line), first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
+    BY host.name, process.parent.name, process.name, user.name
+| SORT starts DESC

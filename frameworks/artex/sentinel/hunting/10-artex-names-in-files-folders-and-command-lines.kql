@@ -1,0 +1,19 @@
+// ARTEX names in files, folders and command lines
+// ARTEX detections by ThreatDefence. Source: https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// Example hunt for Microsoft Sentinel and Defender XDR advanced hunting. Test and baseline before alerting.
+// Expect a few false matches on words that contain the same letters. A numbered `artex-probe` file or anything under `C:\ProgramData\artx5v\` is not one of them.
+
+// Example: Defender for Endpoint, files, folders and commands carrying the names the agents leave behind
+union isfuzzy=true
+  (DeviceFileEvents
+   | where Timestamp >= datetime(2026-08-01)
+   | where FileName startswith "artex-probe" or FolderPath has @"\ProgramData\artx"
+       or FileName in~ ("cl1217.jsp", "f1219a.jsp", "z1219.jsp", "graphics-hook-filter64.dll", "graphics-hook_config.bin")
+   | project Timestamp, DeviceName, Kind = "file", Detail = FolderPath, Actor = InitiatingProcessFileName,
+             Command = InitiatingProcessCommandLine),
+  (DeviceProcessEvents
+   | where Timestamp >= datetime(2026-08-01)
+   | where ProcessCommandLine matches regex @"(?i)(^|[\s\\/""'=_-])(artex|artx)[\w.-]*" or ProcessCommandLine has "art18-"
+   | project Timestamp, DeviceName, Kind = "process", Detail = FolderPath, Actor = InitiatingProcessFileName,
+             Command = ProcessCommandLine)
+| order by Timestamp asc

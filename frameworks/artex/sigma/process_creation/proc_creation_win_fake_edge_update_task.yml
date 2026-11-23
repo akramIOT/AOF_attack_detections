@@ -1,0 +1,30 @@
+title: Scheduled Task Disguised as Microsoft Edge Update in the SQL Server Toolkit
+id: 001de136-fc13-5af2-8bc9-236c1ba4ef05
+status: experimental
+description: |
+    Detects schtasks creating the task names that the MS SQL Server brute-force toolkit uses for persistence:
+    MicrosoftEdgeUpdateTaskMachineUA and MicrosoftEdgeUpdateTaskMachineCore with fixed GUIDs, and Microsoft_UPDATES.
+    The real Edge updater uses different GUIDs per install.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://www.fortinet.com/blog/threat-research/t-sql-being-abused-to-deliver-malware-on-compromised-ms-sql-servers
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.persistence
+    - attack.t1053.005
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection_img:
+        Image|endswith: '\schtasks.exe'
+    selection_name:
+        CommandLine|contains:
+            - 'CEC15D9B-F4BB-446A-B6E1-C61E74B016A2'
+            - '4C33CE3F-7722-4257-AF83-351A4911C159'
+            - 'Microsoft_UPDATES'
+    condition: all of selection_*
+falsepositives:
+    - Unknown
+level: critical

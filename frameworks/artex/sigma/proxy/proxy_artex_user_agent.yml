@@ -1,0 +1,41 @@
+title: ARTEX Agentic Attack Framework User Agent in Proxy Logs
+id: 22f584db-3e7c-523b-ae39-7d0c793a8603
+status: experimental
+description: |
+    Detects outbound or reverse-proxy requests whose user agent names the ARTEX framework or its renamed
+    builds. Outbound hits mean a host on your network is running ARTEX.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://www.extrahop.com/blog/artext-inside-an-agentic-attack-framework
+    - https://www.reversinglabs.com/blog/threat-researchers-notebook-detection-strategies-for-artex-and-related-forks
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.reconnaissance
+    - attack.t1595.002
+    - attack.initial-access
+    - attack.t1190
+logsource:
+    category: proxy
+detection:
+    selection:
+        c-useragent|contains:
+        - 'artex-readonly/'
+        - 'artex-pentest/'
+        - 'artex-audit/'
+        - 'artex-verify/'
+        - 'artex-spawn/'
+        - 'ARTEX-worker/'
+        - 'artex-enrich/'
+        - 'artex-i21861-canary'
+        - 'ARTeX-authorized-pentest'
+        - 'Mozilla/5.0 ARTeX'
+        - 'Mozilla/5.0 (ARTEX)'
+        - 'ArtExVerify/'
+        - 'ArtEx/1.0'
+        - 'scopeweaver'
+        - 'spa-api-recon'
+    condition: selection
+falsepositives:
+    - Authorized penetration tests that use ARTEX
+level: high

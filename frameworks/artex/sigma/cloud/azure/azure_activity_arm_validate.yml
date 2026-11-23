@@ -1,0 +1,24 @@
+title: Azure Resource Manager Deployment Validate Call
+id: 23860b80-c26e-59f0-b81c-30e044e29324
+status: experimental
+description: |
+    Detects deployments validate operations. Base rule for the validate sweep correlation: ARTEX agents
+    swept 11 resource types in 8 seconds to learn what a stolen identity could create.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://cloud.google.com/blog/topics/threat-intelligence/artex-and-friends-enter-agentic-offensive-frameworks
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.discovery
+    - attack.t1580
+logsource:
+    product: azure
+    service: activitylogs
+detection:
+    selection:
+        operationName|endswith: '/deployments/validate/action'
+    condition: selection
+falsepositives:
+    - Deployment pipelines validating templates
+level: informational

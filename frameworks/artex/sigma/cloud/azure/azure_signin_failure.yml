@@ -1,0 +1,27 @@
+title: Entra ID Sign-In Failure
+id: 71a8ff91-4a7d-58dc-a90f-c3d6c1e676a2
+status: experimental
+description: |
+    Failed Entra ID sign-in. Base rule for the password spray correlation.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://www.microsoft.com/en-us/security/blog/2026/10/21/storm-0940-uses-artex-agentic-ai-connectwise-supply-chain-compromise/
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.credential-access
+    - attack.t1110.003
+logsource:
+    product: azure
+    service: signinlogs
+detection:
+    selection:
+        ResultType:
+            - 50126
+            - 50053
+            - 50055
+            - 50056
+    condition: selection
+falsepositives:
+    - Users mistyping passwords
+level: informational

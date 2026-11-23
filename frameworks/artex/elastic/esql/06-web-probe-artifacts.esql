@@ -1,0 +1,10 @@
+// Web probe artifacts: placeholder paths, alg none JWTs and the OAuth callback probe
+// ARTEX detections by ThreatDefence. https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// ES|QL hunt using ECS fields. Change the index pattern to match your data streams and baseline before alerting.
+FROM logs-*
+| WHERE @timestamp > NOW() - 30 days AND url.original IS NOT NULL
+| WHERE url.original LIKE "*zzz-nonexistent-xyz123*" OR url.original LIKE "*zzz_nonexistent_abc.txt*" OR url.original LIKE "*Notexist-xyz*"
+    OR url.original LIKE "*eyJhbGciOiJub25lIn0.*" OR url.original LIKE "*code=AAAA&state=notvalidb64!!*"
+| STATS requests = COUNT(*), urls = VALUES(url.original), first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
+    BY source.ip, user_agent.original
+| SORT requests DESC

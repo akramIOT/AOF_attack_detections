@@ -1,0 +1,34 @@
+title: ARTEX Artifact Names in Command Lines
+id: a939cd68-134a-5626-a4b7-c84fc55788fa
+status: experimental
+description: |
+    Detects command lines that carry the names ARTEX agents give their own test artifacts: artex-probe
+    files with a counting number, ArtexProbe accounts, the VAPOR PANDA working folder artx5v, art18-
+    comments and probe marker strings.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://cloud.google.com/blog/topics/threat-intelligence/artex-and-friends-enter-agentic-offensive-frameworks
+    - https://www.crowdstrike.com/en-us/blog/vapor-panda-uses-artex-to-scale-global-campaign/
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.execution
+    - attack.t1059
+    - attack.persistence
+    - attack.t1136
+logsource:
+    category: process_creation
+detection:
+    selection:
+        CommandLine|contains:
+            - 'artex-probe-'
+            - 'ArtexProbe'
+            - '\\ProgramData\\artx5v'
+            - 'art18-'
+            - 'ARTEX_WRITE_PROBE'
+            - 'ARTX_PERSIST_OK'
+            - 'artex_control_marker_zz9q'
+    condition: selection
+falsepositives:
+    - Authorized penetration tests that use ARTEX
+level: high

@@ -1,0 +1,38 @@
+title: ARTEX User Agent in Okta System Log
+id: 5997ac8a-f037-5db9-84ed-fe52d0b93c28
+status: experimental
+description: |
+    Detects Okta events whose raw user agent names ARTEX.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://www.microsoft.com/en-us/security/blog/2026/10/21/storm-0940-uses-artex-agentic-ai-connectwise-supply-chain-compromise/
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.initial-access
+    - attack.t1078.004
+logsource:
+    product: okta
+    service: okta
+detection:
+    selection:
+        client.userAgent.rawUserAgent|contains:
+        - 'artex-readonly/'
+        - 'artex-pentest/'
+        - 'artex-audit/'
+        - 'artex-verify/'
+        - 'artex-spawn/'
+        - 'ARTEX-worker/'
+        - 'artex-enrich/'
+        - 'artex-i21861-canary'
+        - 'ARTeX-authorized-pentest'
+        - 'Mozilla/5.0 ARTeX'
+        - 'Mozilla/5.0 (ARTEX)'
+        - 'ArtExVerify/'
+        - 'ArtEx/1.0'
+        - 'scopeweaver'
+        - 'spa-api-recon'
+    condition: selection
+falsepositives:
+    - Authorized penetration tests that use ARTEX
+level: high

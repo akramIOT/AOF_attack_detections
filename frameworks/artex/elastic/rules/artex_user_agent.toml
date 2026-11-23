@@ -1,0 +1,51 @@
+[metadata]
+creation_date = "2026/11/20"
+maturity = "development"
+updated_date = "2026/11/20"
+
+[rule]
+author = ["ThreatDefence"]
+description = """
+A request, sign-in or cloud API call carried a user agent that names the ARTEX framework or a renamed build.
+"""
+from = "now-9m"
+index = ["logs-*", "filebeat-*"]
+language = "kuery"
+license = "MIT"
+name = "ARTEX Agentic Attack Framework User Agent"
+references = ["https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting"]
+risk_score = 73
+rule_id = "b3e702f7-98bd-5dac-a260-b75e2967c54f"
+severity = "high"
+tags = ["Threat: ARTEX", "Data Source: Multiple", "Use Case: Threat Detection"]
+type = "query"
+
+query = '''
+user_agent.original : (*artex-readonly/* or *artex-pentest/* or *artex-audit/* or *artex-verify/* or *artex-spawn/* or *ARTEX-worker/* or *artex-enrich/* or *artex-i21861-canary* or *ARTeX* or *ArtExVerify/* or *ArtEx/1.0* or *scopeweaver* or *spa-api-recon*)
+'''
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+
+[[rule.threat.technique]]
+id = "T1595"
+name = "Active Scanning"
+reference = "https://attack.mitre.org/techniques/T1595/"
+
+[rule.threat.tactic]
+id = "TA0043"
+name = "Reconnaissance"
+reference = "https://attack.mitre.org/tactics/TA0043/"
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+
+[[rule.threat.technique]]
+id = "T1190"
+name = "Exploit Public-Facing Application"
+reference = "https://attack.mitre.org/techniques/T1190/"
+
+[rule.threat.tactic]
+id = "TA0001"
+name = "Initial Access"
+reference = "https://attack.mitre.org/tactics/TA0001/"

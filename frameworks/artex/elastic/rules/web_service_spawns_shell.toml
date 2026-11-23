@@ -1,0 +1,55 @@
+[metadata]
+creation_date = "2026/11/20"
+maturity = "development"
+updated_date = "2026/11/20"
+
+[rule]
+author = ["ThreatDefence"]
+description = """
+A web server, runtime or database process started a shell, download tool or netcat. ARTEX agents explore a host this way after exploiting a web application.
+"""
+from = "now-9m"
+index = ["logs-endpoint.events.process-*", "logs-windows.sysmon_operational-*", "auditbeat-*"]
+language = "eql"
+license = "MIT"
+name = "Web or Database Service Spawns a Shell or Download Tool"
+references = ["https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting"]
+risk_score = 47
+rule_id = "04d30b69-505b-5a90-8e3e-c3429cab5a6c"
+severity = "medium"
+tags = ["Threat: ARTEX", "Data Source: Multiple", "Use Case: Threat Detection"]
+type = "eql"
+
+query = '''
+process where event.type == "start" and
+  process.parent.name in ("nginx", "httpd", "apache2", "php-fpm", "java", "node", "mysqld", "mariadbd", "postgres",
+                          "w3wp.exe", "httpd.exe", "java.exe", "node.exe", "php-cgi.exe", "sqlservr.exe", "mysqld.exe") and
+  process.name in ("sh", "bash", "dash", "curl", "wget", "nc", "ncat", "socat", "busybox",
+                   "cmd.exe", "powershell.exe", "pwsh.exe", "curl.exe", "certutil.exe", "bitsadmin.exe")
+'''
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+
+[[rule.threat.technique]]
+id = "T1505"
+name = "Server Software Component"
+reference = "https://attack.mitre.org/techniques/T1505/"
+
+[rule.threat.tactic]
+id = "TA0003"
+name = "Persistence"
+reference = "https://attack.mitre.org/tactics/TA0003/"
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+
+[[rule.threat.technique]]
+id = "T1059"
+name = "Command and Scripting Interpreter"
+reference = "https://attack.mitre.org/techniques/T1059/"
+
+[rule.threat.tactic]
+id = "TA0002"
+name = "Execution"
+reference = "https://attack.mitre.org/tactics/TA0002/"

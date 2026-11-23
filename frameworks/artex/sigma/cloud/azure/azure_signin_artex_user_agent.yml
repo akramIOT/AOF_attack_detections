@@ -1,0 +1,40 @@
+title: ARTEX User Agent in Entra ID Sign-In Logs
+id: c7ebdb95-cf55-52ff-837b-1e007b0c1d38
+status: experimental
+description: |
+    Detects Entra ID sign-ins whose user agent names ARTEX.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://www.microsoft.com/en-us/security/blog/2026/10/21/storm-0940-uses-artex-agentic-ai-connectwise-supply-chain-compromise/
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.initial-access
+    - attack.t1078.004
+    - attack.credential-access
+    - attack.t1110.003
+logsource:
+    product: azure
+    service: signinlogs
+detection:
+    selection:
+        userAgent|contains:
+        - 'artex-readonly/'
+        - 'artex-pentest/'
+        - 'artex-audit/'
+        - 'artex-verify/'
+        - 'artex-spawn/'
+        - 'ARTEX-worker/'
+        - 'artex-enrich/'
+        - 'artex-i21861-canary'
+        - 'ARTeX-authorized-pentest'
+        - 'Mozilla/5.0 ARTeX'
+        - 'Mozilla/5.0 (ARTEX)'
+        - 'ArtExVerify/'
+        - 'ArtEx/1.0'
+        - 'scopeweaver'
+        - 'spa-api-recon'
+    condition: selection
+falsepositives:
+    - Authorized penetration tests that use ARTEX
+level: high

@@ -1,0 +1,43 @@
+// Headless browsers and ARTEX clients signing in, and the pause while a person relays the MFA code
+// ARTEX detections by ThreatDefence. Source: https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// Example hunt for Microsoft Sentinel. Test and baseline before alerting.
+// From the ARTEX source code. ARTEX has no Entra ID or Okta module of its own. When an agent logs in to an application
+// it drives the bundled Playwright MCP server with headless Chromium (Dockerfile:212-220), whose user agent says
+// "HeadlessChrome" unless the operator overrides it. Captcha, email codes and MFA are handed to the operator through
+// the ask_operator tool, which pauses the agent until a person types the answer (agent/worker.go:288-290). Approval
+// gates hold a call for up to 300 seconds (intercept/intercept.go:85). In the sign-in logs that reads as an MFA
+// challenge from a headless or scripted client, a silence of one to fifteen minutes, then success from the same address.
+// Credentials the agents find or create are kept per task and reused across workers (agent/tools_creds.go), so one
+// account can appear from several of these clients in the same hour.
+// "HeadlessChrome" disappears if the operator sets a browser user agent. The relay pause does not depend on it.
+
+let Window = 14d;
+let AgentClient = (ua:string) { ua has "HeadlessChrome" or ua == "norma/0.4" or ua has "spa-api-recon"
+    or ua startswith "Go-http-client/" or ua startswith "python-requests/" or ua startswith "curl/" };
+let SignIns = union isfuzzy=true SigninLogs, AADNonInteractiveUserSignInLogs
+    | where TimeGenerated > ago(Window)
+    | project TimeGenerated, UserPrincipalName, IPAddress, UserAgent, ResultType=tostring(ResultType), AppDisplayName;
+// Part 1: every sign-in attempt from a headless or scripted client named above
+let Clients = SignIns
+    | where AgentClient(UserAgent)
+    | summarize Attempts=count(), Successes=countif(ResultType == "0"), Results=make_set(ResultType, 10),
+        Apps=make_set(AppDisplayName, 10), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated)
+        by UserPrincipalName, IPAddress, UserAgent
+    | extend Signal = "headless or scripted client";
+// Part 2: an MFA interrupt from such a client, then a success from the same user and address 1 to 15 minutes later
+let Interrupts = SignIns
+    | where ResultType in ("50074", "50076", "50079", "500121") and AgentClient(UserAgent)
+    | project InterruptTime=TimeGenerated, UserPrincipalName, IPAddress, InterruptUA=UserAgent;
+let Relay = Interrupts
+    | join kind=inner (SignIns | where ResultType == "0" | project SuccessTime=TimeGenerated, UserPrincipalName, IPAddress,
+        SuccessApp=AppDisplayName) on UserPrincipalName, IPAddress
+    | extend PauseMin = datetime_diff('minute', SuccessTime, InterruptTime)
+    | where PauseMin between (1 .. 15)
+    | summarize Attempts=count(), Successes=dcount(SuccessTime), Results=make_set(strcat("pause ", PauseMin, " min"), 10),
+        Apps=make_set(SuccessApp, 10), FirstSeen=min(InterruptTime), LastSeen=max(SuccessTime)
+        by UserPrincipalName, IPAddress, UserAgent=InterruptUA
+    | extend Signal = "MFA relayed after a pause";
+union Clients, Relay
+| summarize Signals=make_set(Signal), Attempts=sum(Attempts), Successes=sum(Successes), Results=make_set(Results, 20),
+    Apps=make_set(Apps, 20), FirstSeen=min(FirstSeen), LastSeen=max(LastSeen) by UserPrincipalName, IPAddress, UserAgent
+| order by array_length(Signals) desc, Successes desc

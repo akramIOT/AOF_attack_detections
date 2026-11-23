@@ -1,0 +1,40 @@
+id: 7ccb8093-94fc-558b-8b2a-e1a2dff7b1b4
+name: ARTEX code-default user agents (norma WebFetch, update check)
+description: |
+  A sign-in, Graph call or web request carried a user agent hard-coded in the ARTEX source or its agent library:
+  "norma/0.4" from the WebFetch tool (BaaRai/Norma v0.4.11, tool/webfetch.go:236) or "artex-update-check" from the
+  console's update check (server/update_check.go:69). A real norma client only sends GET and never fetches static assets,
+  so web rows that break that pattern are dropped. Other agents built on norma share its user agent: treat a match as a lead.
+  ARTEX detections by ThreatDefence: https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+severity: Medium
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes: []
+  - connectorId: CefAma
+    dataTypes: []
+queryFrequency: 1h
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - Reconnaissance
+  - Discovery
+relevantTechniques:
+  - T1595
+  - T1592
+query: |
+  let CodeUA = dynamic(["norma/0.4", "artex-update-check"]);
+  let StaticExt = dynamic([".js", ".css", ".map", ".png", ".jpg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf"]);
+  union isfuzzy=true
+      (SigninLogs | where UserAgent in (CodeUA) | project TimeGenerated, Source="SigninLogs", Account=UserPrincipalName, IPAddress, UserAgent, Target=AppDisplayName, Method="", Url=""),
+      (AADNonInteractiveUserSignInLogs | where UserAgent in (CodeUA) | project TimeGenerated, Source="AADNonInteractiveUserSignInLogs", Account=UserPrincipalName, IPAddress, UserAgent, Target=AppDisplayName, Method="", Url=""),
+      (MicrosoftGraphActivityLogs | where UserAgent in (CodeUA) | project TimeGenerated, Source="MicrosoftGraphActivityLogs", Account=coalesce(UserId, ServicePrincipalId, AppId), IPAddress, UserAgent, Target="Microsoft Graph", Method=RequestMethod, Url=RequestUri),
+      (CommonSecurityLog | where RequestClientApplication in (CodeUA) | project TimeGenerated, Source="CommonSecurityLog", Account=SourceUserName, IPAddress=SourceIP, UserAgent=RequestClientApplication, Target=DestinationHostName, Method=RequestMethod, Url=RequestURL),
+      (W3CIISLog | where csUserAgent in (CodeUA) | project TimeGenerated, Source="W3CIISLog", Account=csUserName, IPAddress=cIP, UserAgent=csUserAgent, Target=csHost, Method=csMethod, Url=csUriStem)
+  | extend Path = tolower(tostring(split(Url, "?")[0]))
+  | summarize Events=count(), NonGet=countif(isnotempty(Method) and Method != "GET"), StaticHits=countif(Path has_any (StaticExt)),
+      Targets=make_set(Target, 10), SampleURLs=make_set(Url, 10), Sources=make_set(Source),
+      FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated) by Account, IPAddress, UserAgent
+  | where UserAgent == "artex-update-check" or (NonGet == 0 and StaticHits == 0)
+version: 1.0.0
+kind: Scheduled

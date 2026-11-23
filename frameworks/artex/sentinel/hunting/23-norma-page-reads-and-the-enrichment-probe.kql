@@ -1,0 +1,42 @@
+// ARTEX page reads (norma/0.4) and the enrichment probe that follows
+// ARTEX detections by ThreatDefence. Source: https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// Example hunt for Microsoft Sentinel. Test and baseline before alerting.
+// From the ARTEX source code. Every WebFetch call the agents make is a plain GET with the user agent "norma/0.4",
+// hard-coded in the agent library ARTEX builds against (BaaRai/Norma v0.4.11, tool/webfetch.go:236). WebFetch refuses
+// .js, .css, image, font and media URLs (tool/webfetch.go:177-204), so the source reads pages and API responses but
+// never loads the assets a browser would. When an agent records a new site, ARTEX's enrichment engine sends one more
+// GET to it with Go's default "Go-http-client/1.1", Connection: close, redirects not followed and certificate checks
+// off (enrich/enrich.go:104-128, 247). Both leave from the ARTEX host, so they share a source address.
+// Changing "norma/0.4" needs a rebuild. ARTEX_TARGET_USER_AGENT does not replace it, because it only fills in requests
+// that carry no user agent (egress/egress.go:459). It does replace the Go default on the enrichment probe, so the
+// second half is the more fragile one. Other tools built on norma share the user agent: treat a match as a lead.
+
+let Window = 14d;
+let StaticExt = dynamic([".js", ".mjs", ".css", ".map", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico",
+    ".woff", ".woff2", ".ttf", ".otf", ".eot", ".wasm", ".mp4", ".webm", ".mp3"]);
+let Web = union isfuzzy=true
+    (CommonSecurityLog
+        | where TimeGenerated > ago(Window) and isnotempty(RequestClientApplication)
+        | project TimeGenerated, Src=SourceIP, Host=DestinationHostName, Method=RequestMethod,
+            Url=RequestURL, UA=RequestClientApplication),
+    (W3CIISLog
+        | where TimeGenerated > ago(Window)
+        | project TimeGenerated, Src=cIP, Host=csHost, Method=csMethod, Url=csUriStem, UA=csUserAgent)
+    | extend UA = replace_string(UA, "+", " ")
+    | extend Path = tolower(tostring(split(Url, "?")[0]));
+let Norma = Web
+    | where UA == "norma/0.4"
+    | summarize NormaRequests=count(), NormaPaths=dcount(Path), Methods=make_set(Method, 5),
+        StaticHits=countif(Path has_any (StaticExt)), SamplePaths=make_set(Path, 15),
+        NormaFirst=min(TimeGenerated), NormaLast=max(TimeGenerated) by Src, Host;
+let Enrich = Web
+    | where UA == "Go-http-client/1.1" and Method == "GET"
+    | summarize EnrichProbes=count(), EnrichPaths=make_set(Path, 5), EnrichFirst=min(TimeGenerated) by Src, Host;
+Norma
+| join kind=leftouter Enrich on Src, Host
+| extend EnrichNearNorma = isnotempty(EnrichFirst) and abs(datetime_diff('minute', EnrichFirst, NormaFirst)) <= 30
+// A real norma client is GET only and never asks for static assets.
+| where StaticHits == 0 and Methods has "GET" and array_length(Methods) == 1
+| extend Strength = iff(EnrichNearNorma, "norma page reads plus a Go enrichment probe", "norma page reads only")
+| project Src, Host, Strength, EnrichNearNorma, NormaRequests, NormaPaths, SamplePaths, NormaFirst, NormaLast, EnrichProbes, EnrichPaths, EnrichFirst
+| order by EnrichNearNorma desc, NormaRequests desc

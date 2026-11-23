@@ -1,0 +1,29 @@
+title: JSP Web Shell Names Seen in ARTEX Intrusions
+id: da2a1f27-1099-5c19-ab6f-820c9b3b1e6a
+status: experimental
+description: |
+    Detects creation of the JSP web shell file names Google observed when an ARTEX agent redirected the
+    MySQL general log into a web directory.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://cloud.google.com/blog/topics/threat-intelligence/artex-and-friends-enter-agentic-offensive-frameworks
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.persistence
+    - attack.t1505.003
+logsource:
+    category: file_event
+detection:
+    selection:
+        TargetFilename|endswith:
+            - '/cl1217.jsp'
+            - '/f1219a.jsp'
+            - '/z1219.jsp'
+            - '\\cl1217.jsp'
+            - '\\f1219a.jsp'
+            - '\\z1219.jsp'
+    condition: selection
+falsepositives:
+    - Unknown
+level: critical

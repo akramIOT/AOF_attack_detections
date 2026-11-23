@@ -1,0 +1,26 @@
+// Indicator sweep with the ARTEX watchlist
+// ARTEX detections by ThreatDefence. Source: https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// Upload feeds/sentinel-watchlist.csv as a Microsoft Sentinel watchlist with the alias AOF_IOCs and the search
+// key "value". A match needs investigation. Addresses are reassigned, so check the reported date and review_by.
+
+let IOC = _GetWatchlist('AOF_IOCs') | where framework has "artex" | project value=tostring(SearchKey), type, confidence, actor, source;
+let IPList = toscalar(IOC | where type == "ipv4" | summarize make_list(value));  // single addresses and CIDR ranges
+let UAs = IOC | where type == "user_agent" and confidence in ("high", "medium") | project value;
+let Domains = IOC | where type == "domain" and confidence in ("high", "medium") | project value;
+union isfuzzy=true
+    (SigninLogs | where TimeGenerated > ago(90d)
+        | where ipv4_is_in_any_range(IPAddress, IPList) or UserAgent has_any (UAs)
+        | project TimeGenerated, Table="SigninLogs", Indicator=coalesce(IPAddress, UserAgent), UserPrincipalName, IPAddress, UserAgent),
+    (AADServicePrincipalSignInLogs | where TimeGenerated > ago(90d)
+        | where ipv4_is_in_any_range(IPAddress, IPList)
+        | project TimeGenerated, Table="AADServicePrincipalSignInLogs", Indicator=IPAddress, UserPrincipalName=ServicePrincipalName, IPAddress, UserAgent=""),
+    (AWSCloudTrail | where TimeGenerated > ago(90d)
+        | where ipv4_is_in_any_range(SourceIpAddress, IPList) or UserAgent has_any (UAs)
+        | project TimeGenerated, Table="AWSCloudTrail", Indicator=coalesce(SourceIpAddress, UserAgent), UserPrincipalName=UserIdentityArn, IPAddress=SourceIpAddress, UserAgent),
+    (CommonSecurityLog | where TimeGenerated > ago(90d)
+        | where ipv4_is_in_any_range(SourceIP, IPList) or ipv4_is_in_any_range(DestinationIP, IPList) or RequestClientApplication has_any (UAs) or DestinationHostName in (Domains)
+        | project TimeGenerated, Table="CommonSecurityLog", Indicator=coalesce(SourceIP, DestinationIP), UserPrincipalName=SourceUserName, IPAddress=SourceIP, UserAgent=RequestClientApplication),
+    (DeviceNetworkEvents | where Timestamp > ago(30d)
+        | where ipv4_is_in_any_range(RemoteIP, IPList) or RemoteUrl has_any (Domains)
+        | project TimeGenerated=Timestamp, Table="DeviceNetworkEvents", Indicator=coalesce(RemoteIP, RemoteUrl), UserPrincipalName=InitiatingProcessAccountName, IPAddress=RemoteIP, UserAgent="")
+| order by TimeGenerated desc

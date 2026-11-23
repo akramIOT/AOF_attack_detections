@@ -1,0 +1,30 @@
+title: Remote Process Listing With tasklist
+id: c6af9e44-96e1-55dc-8ad2-ac1e0c15ac0b
+status: experimental
+description: |
+    Detects tasklist run against a remote machine. ARTEX agents ran tasklist across a domain to find
+    Windows hosts with no endpoint sensor before moving there. Many hits from one host in a short window
+    are the strong signal.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://www.crowdstrike.com/en-us/blog/vapor-panda-uses-artex-to-scale-global-campaign/
+    - https://cloud.google.com/blog/topics/threat-intelligence/artex-and-friends-enter-agentic-offensive-frameworks
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.discovery
+    - attack.t1057
+    - attack.t1518.001
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection_img:
+        - Image|endswith: '\\tasklist.exe'
+        - OriginalFileName: 'tasklist.exe'
+    selection_remote:
+        CommandLine|contains|windash: ' /s '
+    condition: all of selection_*
+falsepositives:
+    - Administrators and inventory scripts checking remote processes
+level: medium

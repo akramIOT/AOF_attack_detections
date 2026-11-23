@@ -1,0 +1,20 @@
+// User agent family burst from one source, after Elastic Security Labs (November 13, 2026)
+// ARTEX detections by ThreatDefence. https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// ES|QL hunt using ECS fields. Change the index pattern to match your data streams and baseline before alerting.
+FROM logs-*
+| WHERE @timestamp > NOW() - 14 days AND user_agent.original IS NOT NULL AND source.ip IS NOT NULL
+| WHERE NOT CIDR_MATCH(source.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "169.254.0.0/16", "100.64.0.0/10", "224.0.0.0/4")
+| EVAL family = CASE(
+    user_agent.original LIKE "Boto3*" OR user_agent.original LIKE "aws-cli*" OR user_agent.original LIKE "aws-sdk*", "aws",
+    user_agent.original LIKE "*python-requests*" OR user_agent.original LIKE "*Python-urllib*" OR user_agent.original LIKE "*aiohttp*", "python",
+    user_agent.original LIKE "curl/*", "curl",
+    user_agent.original LIKE "norma*", "norma",
+    user_agent.original LIKE "Go-http-client*", "go",
+    user_agent.original RLIKE "(?i).*(nuclei|sqlmap|ffuf|katana|gobuster|nikto).*", "scanner",
+    user_agent.original LIKE "Mozilla/5.0*", "browser",
+    "other")
+| EVAL minute = DATE_TRUNC(1 minute, @timestamp)
+| STATS requests = COUNT(*), families = COUNT_DISTINCT(family), family_list = VALUES(family) BY source.ip, minute
+| WHERE families >= 3 AND requests >= 20
+| STATS minutes = COUNT(*), total_requests = SUM(requests), first_seen = MIN(minute), last_seen = MAX(minute) BY source.ip
+| SORT minutes DESC

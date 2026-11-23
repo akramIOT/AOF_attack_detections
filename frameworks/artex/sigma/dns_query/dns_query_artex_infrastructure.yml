@@ -1,0 +1,33 @@
+title: DNS Query for Reported ARTEX Infrastructure
+id: 7229e832-84df-55f9-b5bc-3d9591d5abbb
+status: experimental
+description: |
+    Detects DNS lookups for command and control domains reported in ARTEX campaigns (VAPOR PANDA
+    BLOODALCHEMY) and community-reported ARTEX hosting.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://www.crowdstrike.com/en-us/blog/vapor-panda-uses-artex-to-scale-global-campaign/
+    - https://blog.malwaremustdie.org/2026/11/mmd-072-2026-artex-detection-signature.html
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.command-and-control
+    - attack.t1071.001
+logsource:
+    category: dns_query
+detection:
+    selection_c2:
+        QueryName:
+            - 'nginxmysql.com'
+            - 'sqlserver-sqlite.com'
+            - 'www.ddduuuppp.com'
+    selection_artex:
+        QueryName|endswith:
+            - 'artex.lol'
+            - 'artex.tokena2b.top'
+            - 'artex.ok7777.eu.cc'
+            - 'artex.noog2infra.site'
+    condition: 1 of selection_*
+falsepositives:
+    - Unknown
+level: high

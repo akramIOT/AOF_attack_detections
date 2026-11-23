@@ -1,0 +1,61 @@
+// ARTEX running on a host you monitor: agent shells, the recording proxy, resolver fan-out and archives
+// ARTEX detections by ThreatDefence. Source: https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// Example hunt for Defender XDR advanced hunting and Microsoft Sentinel. Test before alerting. Refines hunt 20.
+// From the ARTEX source code. Signals the binary leaves on the machine it runs on, for an insider, an intruder staging
+// from your network, or a tester you did not know about:
+//  - Agent commands run through a shim: "bash" is a symlink to the artex binary in a temporary "artex-exec-" folder,
+//    run as uid/gid 10001, and MCP servers start as "artex __artex-exec-drop <uid> <gid> -- <cmd>"
+//    (server/execpriv.go:25, server/execpriv_unix.go:539-575).
+//  - Agent shells carry HTTP_PROXY=http://artex-pace:artex-pace@127.0.0.1:8788 (egress/pace.go:20, agent/worker.go:229-252).
+//  - The UI listens on 8787 and the recording proxy on 8788, both on loopback by default and on every interface in the
+//    Docker image (cmd/artex/main.go:101-103, Dockerfile:243-245).
+//  - The enrichment engine resolves every new domain by sending UDP/53 straight to eight public resolvers, past your
+//    own DNS servers (enrich/enrich.go:71-76, dnsx DefaultResolvers).
+//  - Skill scripts and outputs: harvest_static.py, spider_mpa.py, runtime_harvest.js, bbot runs with "-o bbot-output".
+//  - Noise-profile scanner flags are handed to the agents verbatim (agent/noise_profile.go:56-67).
+//  - Task archives can go to S3 under "artex/tasks/task-" (archivestore/s3.go:76-79).
+//  - The browser capture extension is named "ARTEX Traffic Capture" (extension/manifest.json).
+// The shim, the proxy credential and the resolver list need a code change to remove. Ports, paths and flags do not.
+
+let Window = 30d;
+let PublicResolvers = dynamic(["1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4", "9.9.9.9", "149.112.112.112",
+    "208.67.222.222", "208.67.220.220"]);
+let NoiseFlags = @"--max-rate 2 --max-retries 2|-rate-limit 2 -c 1|-rl 2 -[tc] 1|-rate 2 -t 1|--rate-limit 2 --workers 1|--delay=0\.(5|2|05)\b";
+union isfuzzy=true
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where FolderPath contains "/artex-exec-" or InitiatingProcessFolderPath contains "/artex-exec-"
+            or ProcessCommandLine matches regex @"__artex-exec-drop|artex-pace:artex-pace|harvest_static\.py|spider_mpa\.py|runtime_harvest\.js|-o bbot-output"
+            or (ProcessCommandLine matches regex NoiseFlags and FileName in~ ("nmap", "nuclei", "httpx", "katana", "ffuf", "dalfox", "python3", "sqlmap"))
+            or (InitiatingProcessFileName =~ "artex" and FileName in~ ("bash", "sh", "nuclei", "httpx", "katana", "ffuf", "nmap", "node"))
+        | project Timestamp, DeviceName, Signal="process", Process=FileName, Path=FolderPath, Account=AccountName,
+            CommandLine=ProcessCommandLine, Detail=InitiatingProcessCommandLine),
+    (DeviceNetworkEvents
+        | where Timestamp > ago(Window)
+        | where ActionType == "ListeningConnectionCreated" and LocalPort in (8787, 8788)
+            and (InitiatingProcessFileName =~ "artex" or InitiatingProcessFolderPath endswith "/artex")
+        | project Timestamp, DeviceName, Signal="console or recording proxy listening", Process=InitiatingProcessFileName,
+            Path=InitiatingProcessFolderPath, Account=InitiatingProcessAccountName, CommandLine=InitiatingProcessCommandLine,
+            Detail=strcat("port ", LocalPort)),
+    (DeviceNetworkEvents
+        | where Timestamp > ago(Window)
+        | where RemotePort == 53 and RemoteIP in (PublicResolvers)
+        | summarize Resolvers=dcount(RemoteIP), Queries=count(), FirstQuery=min(Timestamp),
+            Process=take_any(InitiatingProcessFileName), Path=take_any(InitiatingProcessFolderPath)
+            by DeviceName, Hour=bin(Timestamp, 1h)
+        // dnsx spreads queries across the whole list; a normal forwarder uses one or two
+        | where Resolvers >= 5
+        | project Timestamp=FirstQuery, DeviceName, Signal="direct DNS to the dnsx resolver list", Process, Path, Account="",
+            CommandLine="", Detail=strcat(Resolvers, " resolvers, ", Queries, " queries")),
+    (DeviceTvmBrowserExtensions
+        | where ExtensionName =~ "ARTEX Traffic Capture"
+        | project Timestamp=now(), DeviceName=DeviceId, Signal="ARTEX capture extension installed", Process=BrowserName,
+            Path=ExtensionId, Account="", CommandLine="", Detail=tostring(ExtensionRisk)),
+    (AWSCloudTrail
+        | where TimeGenerated > ago(Window)
+        | where EventName in ("PutObject", "CreateMultipartUpload", "CompleteMultipartUpload")
+        | where tostring(parse_json(RequestParameters).key) startswith "artex/tasks/task-"
+        | project Timestamp=TimeGenerated, DeviceName=SourceIpAddress, Signal="ARTEX task archive written to S3",
+            Process=UserAgent, Path=tostring(parse_json(RequestParameters).bucketName), Account=UserIdentityArn,
+            CommandLine="", Detail=tostring(parse_json(RequestParameters).key))
+| order by Timestamp desc

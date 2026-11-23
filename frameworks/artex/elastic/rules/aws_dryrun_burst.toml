@@ -1,0 +1,40 @@
+[metadata]
+creation_date = "2026/11/20"
+maturity = "development"
+updated_date = "2026/11/20"
+
+[rule]
+author = ["ThreatDefence"]
+description = """
+Ten or more EC2 calls with the DryRun flag from one identity in five minutes, the capability check ARTEX agents run with a stolen AWS key.
+"""
+from = "now-9m"
+language = "esql"
+license = "MIT"
+name = "Burst of EC2 DryRun Calls From One Identity"
+references = ["https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting"]
+risk_score = 47
+rule_id = "fa8bff4a-d06b-50c2-8e74-0a9e10c444f6"
+severity = "medium"
+tags = ["Threat: ARTEX", "Data Source: Multiple", "Use Case: Threat Detection"]
+type = "esql"
+interval = "5m"
+query = '''
+from logs-aws.cloudtrail-*
+| where aws.cloudtrail.error_code == "Client.DryRunOperation"
+| stats dryruns = count(*), actions = count_distinct(event.action) by aws.cloudtrail.user_identity.arn, source.ip
+| where dryruns >= 10
+'''
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+
+[[rule.threat.technique]]
+id = "T1580"
+name = "Cloud Infrastructure Discovery"
+reference = "https://attack.mitre.org/techniques/T1580/"
+
+[rule.threat.tactic]
+id = "TA0007"
+name = "Discovery"
+reference = "https://attack.mitre.org/tactics/TA0007/"

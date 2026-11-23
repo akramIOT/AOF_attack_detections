@@ -1,0 +1,9 @@
+// ARTEX user agent in any source
+// ARTEX detections by ThreatDefence. https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// ES|QL hunt using ECS fields. Change the index pattern to match your data streams and baseline before alerting.
+FROM logs-*
+| WHERE @timestamp > NOW() - 30 days
+| WHERE user_agent.original RLIKE ".*(artex-(readonly|pentest|audit|verify|spawn|enrich)/|ARTEX-worker/|artex-i21861-canary|ARTeX|Mozilla/5.0 \\(ARTEX\\)|ArtExVerify/|ArtEx/1\\.0|scopeweaver|spa-api-recon).*"
+| STATS events = COUNT(*), first_seen = MIN(@timestamp), last_seen = MAX(@timestamp), datasets = VALUES(event.dataset)
+    BY source.ip, user_agent.original
+| SORT events DESC

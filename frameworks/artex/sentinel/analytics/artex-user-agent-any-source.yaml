@@ -1,0 +1,34 @@
+id: 255cc5dc-0859-568e-bf73-22a5cf2b5c26
+name: ARTEX agentic attack framework user agent
+description: |
+  A sign-in, cloud API call or web request carried a user agent that names the ARTEX framework or its renamed builds.
+  ARTEX detections by ThreatDefence: https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+severity: High
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes: []
+  - connectorId: AWS
+    dataTypes: []
+  - connectorId: CefAma
+    dataTypes: []
+queryFrequency: 1h
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - Reconnaissance
+  - InitialAccess
+relevantTechniques:
+  - T1595
+  - T1078
+query: |
+  let ArtexUA = dynamic(["artex-readonly/","artex-pentest/","artex-audit/","artex-verify/","artex-spawn/","ARTEX-worker/","artex-enrich/","artex-i21861-canary","ARTeX-authorized-pentest","Mozilla/5.0 ARTeX","Mozilla/5.0 (ARTEX)","ArtExVerify/","ArtEx/1.0","scopeweaver","spa-api-recon"]);
+  union isfuzzy=true
+      (SigninLogs | where UserAgent has_any (ArtexUA) | project TimeGenerated, Source="SigninLogs", Account=UserPrincipalName, IPAddress, UserAgent),
+      (AADNonInteractiveUserSignInLogs | where UserAgent has_any (ArtexUA) | project TimeGenerated, Source="AADNonInteractiveUserSignInLogs", Account=UserPrincipalName, IPAddress, UserAgent),
+      (AWSCloudTrail | where UserAgent has_any (ArtexUA) | project TimeGenerated, Source="AWSCloudTrail", Account=UserIdentityArn, IPAddress=SourceIpAddress, UserAgent),
+      (CommonSecurityLog | where RequestClientApplication has_any (ArtexUA) | project TimeGenerated, Source="CommonSecurityLog", Account=SourceUserName, IPAddress=SourceIP, UserAgent=RequestClientApplication),
+      (MicrosoftGraphActivityLogs | where UserAgent has_any (ArtexUA) | project TimeGenerated, Source="MicrosoftGraphActivityLogs", Account=coalesce(UserId, ServicePrincipalId, AppId), IPAddress=IPAddress, UserAgent)
+  | summarize Events=count(), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated), Sources=make_set(Source) by Account, IPAddress, UserAgent
+version: 1.0.0
+kind: Scheduled

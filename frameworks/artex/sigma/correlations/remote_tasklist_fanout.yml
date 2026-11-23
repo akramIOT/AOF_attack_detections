@@ -1,0 +1,26 @@
+title: Remote tasklist Fan-Out From One Host
+id: c53722c6-23d3-5460-a002-2d1b034e2809
+status: experimental
+description: |
+    tasklist run against many remote machines from one host in ten minutes, how ARTEX agents look for hosts with no endpoint sensor.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://www.crowdstrike.com/en-us/blog/vapor-panda-uses-artex-to-scale-global-campaign/
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.discovery
+    - attack.t1057
+    - attack.t1518.001
+correlation:
+    type: event_count
+    rules:
+        - c6af9e44-96e1-55dc-8ad2-ac1e0c15ac0b
+    group-by:
+        - Computer
+    timespan: 10m
+    condition:
+        gte: 10
+falsepositives:
+    - Automation and infrastructure-as-code pipelines. Baseline before alerting
+level: high

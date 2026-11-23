@@ -1,0 +1,41 @@
+[metadata]
+creation_date = "2026/11/20"
+maturity = "development"
+updated_date = "2026/11/20"
+
+[rule]
+author = ["ThreatDefence"]
+description = """
+A process or file carries the names ARTEX agents give their own test artifacts.
+"""
+from = "now-9m"
+index = ["logs-endpoint.events.*", "logs-windows.sysmon_operational-*", "auditbeat-*"]
+language = "eql"
+license = "MIT"
+name = "ARTEX Artifact Names on a Host"
+references = ["https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting"]
+risk_score = 73
+rule_id = "514aa8ca-1b70-5e4e-8ccf-14991c70e232"
+severity = "high"
+tags = ["Threat: ARTEX", "Data Source: Multiple", "Use Case: Threat Detection"]
+type = "eql"
+
+query = '''
+any where
+  (event.category == "process" and process.command_line : ("*artex-probe-*", "*ArtexProbe*", "*artx5v*", "*art18-*", "*ARTEX_WRITE_PROBE*", "*ARTX_PERSIST_OK*")) or
+  (event.category == "file" and (file.name : "artex-probe-*" or file.path : "*ProgramData*artx5v*" or
+     file.name in ("cl1217.jsp", "f1219a.jsp", "z1219.jsp", "zzartx0000.php")))
+'''
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+
+[[rule.threat.technique]]
+id = "T1059"
+name = "Command and Scripting Interpreter"
+reference = "https://attack.mitre.org/techniques/T1059/"
+
+[rule.threat.tactic]
+id = "TA0002"
+name = "Execution"
+reference = "https://attack.mitre.org/tactics/TA0002/"

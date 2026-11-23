@@ -1,0 +1,26 @@
+title: ARTEX Probe Artifact Created
+id: c5af5255-c664-5237-9359-34a102f431d1
+status: experimental
+description: |
+    Detects files created with the names and folders ARTEX agents use for their own test artifacts.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://cloud.google.com/blog/topics/threat-intelligence/artex-and-friends-enter-agentic-offensive-frameworks
+    - https://www.crowdstrike.com/en-us/blog/vapor-panda-uses-artex-to-scale-global-campaign/
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.execution
+    - attack.t1059
+logsource:
+    category: file_event
+detection:
+    selection:
+        TargetFilename|contains:
+            - 'artex-probe-'
+            - '\\ProgramData\\artx5v\\'
+            - 'zzartx0000.php'
+    condition: selection
+falsepositives:
+    - Authorized penetration tests that use ARTEX
+level: high

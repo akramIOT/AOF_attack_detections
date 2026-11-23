@@ -1,0 +1,39 @@
+// ARTEX console and side-channel traffic in your outbound proxy logs
+// ARTEX detections by ThreatDefence. Source: https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// Example hunt for Microsoft Sentinel. Test and baseline before alerting.
+// From the ARTEX source code. Someone on your network who drives a remote ARTEX console, or an ARTEX host behind your
+// proxy, leaves requests a TLS-inspecting proxy can name:
+//  - Console API paths on port 8787: /api/auth/status, /api/auth/login (the username is always "ARTEX"), /api/health,
+//    /api/tasks, and /api/traffic/ingest, where the "ARTEX Traffic Capture" browser extension posts captured traffic
+//    in batches of ten (server/auth.go:287-293, extension/background.js:10-11,148-151). Development builds put the
+//    session token in the query string as ?token= (web/src/lib/api.ts:214-226).
+//  - The opt-in update check: GET https://api.github.com/repos/BaaRai/ARTEX/releases/latest with the user agent
+//    "artex-update-check", at most once a day (server/update_check.go:18-71).
+//  - The Keenable search backend, which sends "X-Keenable-Title: ARTEX" to api.keenable.ai (agent/worker.go:46).
+//  - Finding alerts sent straight to DingTalk, Feishu, WeCom or Telegram, never through the ARTEX proxy, so they show
+//    the operator's real address (notify/http.go:111-125).
+// Paths and the port can be changed with a reverse proxy, the update check is off by default, and the Keenable and
+// notification channels are optional. The "artex-update-check" user agent needs a code change.
+
+let Window = 30d;
+let NotifyHosts = dynamic(["oapi.dingtalk.com", "open.feishu.cn", "open.larksuite.com", "qyapi.weixin.qq.com", "api.telegram.org"]);
+CommonSecurityLog
+| where TimeGenerated > ago(Window) and isnotempty(RequestURL)
+| extend Signal = case(
+    RequestClientApplication == "artex-update-check" or RequestURL has "/repos/BaaRai/ARTEX/releases", "ARTEX update check",
+    RequestURL has "/api/traffic/ingest", "capture extension posting to a console",
+    RequestURL has_any ("/api/auth/status", "/api/auth/login", "/api/ready") and (DestinationPort == 8787 or RequestURL contains ":8787/"),
+        "console sign-in on port 8787",
+    (DestinationPort == 8787 or RequestURL contains ":8787/") and RequestURL contains "token=ey", "console session token in a URL",
+    RequestURL has "api.keenable.ai", "Keenable search backend",
+    "")
+| where isnotempty(Signal)
+| summarize Requests=count(), Signals=make_set(Signal), Destinations=make_set(DestinationHostName, 10),
+    SampleURLs=make_set(RequestURL, 10), UAs=make_set(RequestClientApplication, 5),
+    FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated) by SourceIP, SourceUserName
+// Bring in the chat-ops alerts from the same internal source as context
+| join kind=leftouter (CommonSecurityLog
+    | where TimeGenerated > ago(Window) and DestinationHostName in (NotifyHosts)
+    | summarize NotifyRequests=count(), NotifyDestinations=make_set(DestinationHostName) by SourceIP) on SourceIP
+| project-away SourceIP1
+| order by array_length(Signals) desc, Requests desc

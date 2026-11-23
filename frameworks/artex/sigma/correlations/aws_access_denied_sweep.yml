@@ -1,0 +1,26 @@
+title: AWS Access Denied Sweep Across Many APIs
+id: 8826ae5f-27a0-5062-9cd5-4b14e969fa2c
+status: experimental
+description: |
+    One identity denied on many different API calls in ten minutes, the pattern of a stolen key trying every discovery call.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://securitylabs.datadoghq.com/articles/artex-agentic-attacks-aws-environments/
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.discovery
+    - attack.t1580
+correlation:
+    type: value_count
+    rules:
+        - b0405c56-6546-5465-8f63-bda6bf3ece54
+    group-by:
+        - userIdentity.arn
+    timespan: 10m
+    condition:
+        gte: 15
+        field: eventName
+falsepositives:
+    - Automation and infrastructure-as-code pipelines. Baseline before alerting
+level: high

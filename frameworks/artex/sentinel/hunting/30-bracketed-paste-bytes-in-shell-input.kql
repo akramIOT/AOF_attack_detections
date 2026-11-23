@@ -1,0 +1,30 @@
+// Bracketed-paste bytes in shell input on a compromised host
+// ARTEX detections by ThreatDefence. Source: https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// Example hunt for Microsoft Sentinel and Defender XDR advanced hunting. Low confidence on its own. Test before alerting.
+// From the ARTEX source code. Agents drive interactive sessions (nc shells, ssh, database clients, REPLs) through the
+// shell_open and shell_send tools, which are on by default for every agent (db/db.go:314-321). When the model sends
+// several lines at once, the library wraps them in the terminal bracketed-paste codes ESC[200~ and ESC[201~
+// (BaaRai/Norma v0.4.11, tool/shell_tools.go:225-227), presses Enter as a carriage return and waits for eight seconds of
+// silence before reading (tool/shell_session.go:26). A real terminal hides those codes. A raw reverse shell does not:
+// the shell receives "^[[200~" in front of the first command and "^[[201~" after the last, and usually prints a
+// "not found" error for both. The library echoes no completion marker, so the rest of the command line is the model's.
+// Where shell input, TTY audit or command errors reach your logs, look for those bytes. They are rare in any other
+// source. The codes are fixed in the library and need a code change to remove.
+
+let Window = 30d;
+union isfuzzy=true
+    (Syslog
+        | where TimeGenerated > ago(Window)
+        | where SyslogMessage contains "[200~" or SyslogMessage contains "[201~" or SyslogMessage contains "1b5b3230307e"
+        | project TimeGenerated, Computer, Source="Syslog", Process=ProcessName, Detail=SyslogMessage),
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where ProcessCommandLine contains "[200~" or ProcessCommandLine contains "[201~"
+        | project TimeGenerated=Timestamp, Computer=DeviceName, Source="DeviceProcessEvents", Process=FileName,
+            Detail=strcat(InitiatingProcessFileName, " > ", ProcessCommandLine)),
+    (DeviceEvents
+        | where Timestamp > ago(Window)
+        | where tostring(AdditionalFields) contains "[200~" or ProcessCommandLine contains "[200~"
+        | project TimeGenerated=Timestamp, Computer=DeviceName, Source="DeviceEvents", Process=FileName,
+            Detail=strcat(ActionType, " ", ProcessCommandLine))
+| order by TimeGenerated desc

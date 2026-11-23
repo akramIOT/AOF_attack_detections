@@ -1,0 +1,46 @@
+title: Web or Database Service Spawns a Shell or Download Tool on Windows
+id: 6a64daf6-9e1b-57ab-b9fe-cf43e37123b8
+status: experimental
+description: |
+    Detects IIS, Apache, Tomcat, Java, Node or database processes on Windows starting a command shell,
+    PowerShell, curl or a common download binary. ARTEX agents used the Windows curl binary to pull
+    generated scripts and post results to webhook.site.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://cloud.google.com/blog/topics/threat-intelligence/artex-and-friends-enter-agentic-offensive-frameworks
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - attack.t1059.003
+    - attack.persistence
+    - attack.t1505.003
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection_parent:
+        ParentImage|endswith:
+            - '\\w3wp.exe'
+            - '\\httpd.exe'
+            - '\\tomcat.exe'
+            - '\\java.exe'
+            - '\\node.exe'
+            - '\\php-cgi.exe'
+            - '\\sqlservr.exe'
+            - '\\mysqld.exe'
+    selection_child:
+        Image|endswith:
+            - '\\cmd.exe'
+            - '\\powershell.exe'
+            - '\\pwsh.exe'
+            - '\\curl.exe'
+            - '\\certutil.exe'
+            - '\\bitsadmin.exe'
+            - '\\whoami.exe'
+            - '\\tasklist.exe'
+    condition: selection_parent and selection_child
+falsepositives:
+    - Line-of-business applications that call scripts. Baseline per server
+level: medium

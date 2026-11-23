@@ -1,0 +1,30 @@
+// Payload hosts and fake system binaries from the SQL Server toolkit active in ARTEX operations
+// ARTEX detections by ThreatDefence. Source: https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// Example hunt for Defender XDR advanced hunting. Test before alerting.
+// ThreatDefence saw these hosts active in ARTEX operator toolkits on November 20, 2026. Fortinet reports the same
+// vietnam852.com hosts in a campaign that brute-forces Microsoft SQL Servers, enables xp_cmdshell and installs
+// Gh0st RAT (as winlogon.exe) and an XMRig miner (as MicrosoftEdgeUpdate.exe with the WinRing0x64.sys driver).
+
+let Hosts = dynamic(["vietnam852.com", "zhzy999.net", "jiancai008.com"]);
+let IPs = dynamic(["177.104.169.18", "103.229.52.185", "172.86.84.225"]);
+let Hashes = dynamic(["3f64b0146b323c5716043360e84384a5a197a897f46088df93a910470a29e1a0",
+    "2a23e10bfc097e98295cbff8124bd403c4cb677e709b48ccc53d6aca216c3061",
+    "da4128aa5d006e05c58f0d240c2d8e5fb02774b6acf314f1230059c7a3498724"]);
+union isfuzzy=true
+    (DeviceNetworkEvents | where Timestamp > ago(30d)
+        | where RemoteUrl has_any (Hosts) or RemoteIP in (IPs)
+        | project Timestamp, DeviceName, Signal="network", Detail=coalesce(RemoteUrl, RemoteIP),
+            Process=InitiatingProcessFileName, CommandLine=InitiatingProcessCommandLine),
+    (DeviceProcessEvents | where Timestamp > ago(30d)
+        | where SHA256 in (Hashes)
+            or (FileName in~ ("smss.exe", "winlogon.exe", "dllhost.exe", "sihost.exe")
+                and not(FolderPath startswith @"C:\Windows\System32\" or FolderPath startswith @"C:\Windows\SysWOW64\"))
+            or (FileName =~ "MicrosoftEdgeUpdate.exe" and not(FolderPath has @"\Microsoft\EdgeUpdate\" or FolderPath has @"\Microsoft\Temp\"))
+            or (InitiatingProcessFileName =~ "sqlservr.exe" and FileName in~ ("cmd.exe", "powershell.exe", "certutil.exe"))
+            or (FileName =~ "schtasks.exe" and ProcessCommandLine has_any ("CEC15D9B-F4BB-446A-B6E1-C61E74B016A2", "4C33CE3F-7722-4257-AF83-351A4911C159", "Microsoft_UPDATES"))
+        | project Timestamp, DeviceName, Signal="process", Detail=FolderPath, Process=FileName, CommandLine=ProcessCommandLine),
+    (DeviceFileEvents | where Timestamp > ago(30d)
+        | where SHA256 in (Hashes) or (FileName =~ "WinRing0x64.sys" and FolderPath has_any (@"\Users\", @"\ProgramData\", @"\Temp\"))
+            or FileUrl has_any (Hosts)
+        | project Timestamp, DeviceName, Signal="file", Detail=FolderPath, Process=InitiatingProcessFileName, CommandLine=InitiatingProcessCommandLine)
+| order by Timestamp desc

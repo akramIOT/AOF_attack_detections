@@ -1,0 +1,39 @@
+title: Windows System Binary Name Running From the Wrong Folder
+id: d7ffbe3f-7838-53ca-89cc-d441a1088634
+status: experimental
+description: |
+    Detects smss.exe, winlogon.exe, dllhost.exe, sihost.exe and MicrosoftEdgeUpdate.exe started from a folder
+    other than their real one. A toolkit active in ARTEX operations ships Gh0st RAT as winlogon.exe and an XMRig
+    miner as MicrosoftEdgeUpdate.exe, downloaded into user-writable folders.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://www.fortinet.com/blog/threat-research/t-sql-being-abused-to-deliver-malware-on-compromised-ms-sql-servers
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.stealth
+    - attack.t1036.005
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection_system:
+        Image|endswith:
+            - '\smss.exe'
+            - '\winlogon.exe'
+            - '\dllhost.exe'
+            - '\sihost.exe'
+    filter_main_system:
+        Image|startswith:
+            - 'C:\Windows\System32\'
+            - 'C:\Windows\SysWOW64\'
+    selection_edge:
+        Image|endswith: '\MicrosoftEdgeUpdate.exe'
+    filter_main_edge:
+        Image|contains:
+            - '\Microsoft\EdgeUpdate\'
+            - '\Microsoft\Temp\'
+    condition: (selection_system and not filter_main_system) or (selection_edge and not filter_main_edge)
+falsepositives:
+    - Unknown
+level: high

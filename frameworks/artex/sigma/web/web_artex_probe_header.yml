@@ -1,0 +1,32 @@
+title: ARTEX Probe Marker in HTTP Request
+id: 11753424-03dd-59b0-8909-a8e0a05c313f
+status: experimental
+description: |
+    Detects the X-ARTX-KEY request header and ARTEX probe marker strings in requests. Community-
+    reported, so treat a match as a lead and confirm with other activity from the same source.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://blog.malwaremustdie.org/2026/11/mmd-072-2026-artex-detection-signature.html
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.reconnaissance
+    - attack.t1595.002
+    - attack.initial-access
+    - attack.t1190
+logsource:
+    category: webserver
+detection:
+    selection_marker:
+        cs-uri-query|contains:
+            - 'ARTEX_WRITE_PROBE'
+            - 'ARTX_PERSIST_OK'
+            - 'artex_control_marker_zz9q'
+            - 'ARTEX-PROBE-'
+            - 'artex-probe-'
+    selection_header:
+        cs-headers|contains: 'X-ARTX-KEY'
+    condition: 1 of selection_*
+falsepositives:
+    - Authorized penetration tests that use ARTEX
+level: high

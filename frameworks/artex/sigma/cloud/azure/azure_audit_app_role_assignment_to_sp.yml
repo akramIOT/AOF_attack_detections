@@ -1,0 +1,27 @@
+title: App Role or Directory Role Assigned to a Service Principal
+id: 59f151fc-fee8-523a-9c2d-bbae3a0673f3
+status: experimental
+description: |
+    Detects an app role or directory role assigned to a service principal. ARTEX agents in the
+    Storm-0940 campaign had compromised applications grant themselves roles. Investigate when the
+    initiator is the same service principal that receives the role.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://www.microsoft.com/en-us/security/blog/2026/10/21/storm-0940-uses-artex-agentic-ai-connectwise-supply-chain-compromise/
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.privilege-escalation
+    - attack.t1098.003
+logsource:
+    product: azure
+    service: auditlogs
+detection:
+    selection:
+        properties.message:
+            - 'Add app role assignment to service principal'
+            - 'Add member to role'
+    condition: selection
+falsepositives:
+    - Administrators granting application permissions
+level: medium

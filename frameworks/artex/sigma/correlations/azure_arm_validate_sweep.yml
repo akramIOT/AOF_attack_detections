@@ -1,0 +1,25 @@
+title: Azure Resource Manager Validate Sweep
+id: 0a62aff2-8b75-5648-88d8-3778b26c17c7
+status: experimental
+description: |
+    Five or more deployments validate calls from one caller in one minute, the capability check ARTEX agents run with a stolen Azure identity.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://cloud.google.com/blog/topics/threat-intelligence/artex-and-friends-enter-agentic-offensive-frameworks
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.discovery
+    - attack.t1580
+correlation:
+    type: event_count
+    rules:
+        - 23860b80-c26e-59f0-b81c-30e044e29324
+    group-by:
+        - caller
+    timespan: 1m
+    condition:
+        gte: 5
+falsepositives:
+    - Automation and infrastructure-as-code pipelines. Baseline before alerting
+level: high

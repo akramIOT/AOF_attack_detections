@@ -1,0 +1,23 @@
+// Application reconnaissance in web logs
+// ARTEX detections by ThreatDefence. Source: https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// Example hunt for Microsoft Sentinel and Defender XDR advanced hunting. Test and baseline before alerting.
+// Two or more of these markers from one source against one host is a strong sign of an agent reading and probing the application.
+
+// Example: source maps, runtime config, the not-found canary, forged tokens and recovery abuse
+CommonSecurityLog
+| where TimeGenerated >= datetime(2026-08-01)
+| extend Marker = case(
+    RequestURL has "zzz-nonexistent" or RequestURL has "zzz_nonexistent" or RequestURL has "Notexist-xyz", "not-found canary",
+    RequestURL has "eyJhbGciOiJub25lIn0", "unsigned token",
+    RequestURL has "code=AAAA" or RequestURL has "notvalidb64", "forged OAuth callback",
+    RequestURL endswith ".js.map", "source map",
+    RequestURL has "/env.js" or RequestURL has "/assets/config.json", "runtime config",
+    RequestURL has "format=openapi" or RequestURL has "swagger", "API documentation",
+    RequestURL has "GeneratePasswordResetToken" or RequestURL has "ValidateUserName" or RequestURL has "forgot_password", "account recovery",
+    "")
+| where isnotempty(Marker)
+| summarize Requests=count(), Markers=make_set(Marker), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated),
+    Agents=make_set(RequestClientApplication, 10)
+    by SourceIP, DestinationHostName
+| where array_length(Markers) >= 2 or Markers has "not-found canary" or Markers has "unsigned token"
+| order by Requests desc

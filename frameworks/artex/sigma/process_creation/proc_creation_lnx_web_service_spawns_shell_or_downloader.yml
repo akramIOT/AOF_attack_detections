@@ -1,0 +1,50 @@
+title: Web or Database Service Spawns a Shell or Download Tool on Linux
+id: 7aa7f15b-752d-52d6-b1c3-8ae93c6552f7
+status: experimental
+description: |
+    Detects a web server, application runtime or database process starting a shell, download tool or
+    network utility. ARTEX agents run discovery and pull tooling this way after exploiting a web
+    application, in quick succession and in short bursts.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://cloud.google.com/blog/topics/threat-intelligence/artex-and-friends-enter-agentic-offensive-frameworks
+    - https://www.microsoft.com/en-us/security/blog/2026/11/06/artex-abuse-expands-as-cybercriminals-target-financial-sector/
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.execution
+    - attack.t1059.004
+    - attack.persistence
+    - attack.t1505.003
+logsource:
+    category: process_creation
+    product: linux
+detection:
+    selection_parent:
+        ParentImage|endswith:
+            - '/nginx'
+            - '/httpd'
+            - '/apache2'
+            - '/php-fpm'
+            - '/java'
+            - '/node'
+            - '/mysqld'
+            - '/mariadbd'
+            - '/postgres'
+    selection_parent_php:
+        ParentImage|contains: '/php-fpm'
+    selection_child:
+        Image|endswith:
+            - '/sh'
+            - '/bash'
+            - '/dash'
+            - '/curl'
+            - '/wget'
+            - '/nc'
+            - '/ncat'
+            - '/socat'
+            - '/busybox'
+    condition: 1 of selection_parent* and selection_child
+falsepositives:
+    - Application servers that run shell scripts by design. Baseline each service before alerting
+level: medium

@@ -1,0 +1,32 @@
+// Accounts registered by a source that is also probing the application
+// ARTEX detections by ThreatDefence. Source: https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// Example hunt for Microsoft Sentinel. Test and baseline before alerting.
+// From the ARTEX source code. Workers are told to test on objects they own first and to touch at most three objects that
+// belong to someone else (agent/worker.go:285). In practice they register their own accounts on the target with a strong
+// unique password, store them with save_task_credential and hand them to the next worker (agent/tools_creds.go:92-117),
+// so authenticated testing starts with sign-ups from the same address that is reading the application. The seeded
+// safety rules block HTTP DELETE and paths such as /delete, /remove, /purge and /reset-all (db/db.go:437-720,
+// deleteEndpointPathPattern at :688), so an ARTEX source that creates accounts and objects rarely deletes them.
+// Adjust the registration paths to your applications. Operators can delete the safety rules, so the DELETE check is a
+// hint, not a filter.
+
+let Window = 14d;
+let RegisterPath = @"(?i)/(register|registration|signup|sign-up|sign_up|join|users/new|account/create|auth/register|api/users)(?:[/?]|$)";
+let Web = union isfuzzy=true
+    (CommonSecurityLog | where TimeGenerated > ago(Window) and isnotempty(RequestURL)
+        | project TimeGenerated, Src=SourceIP, Host=DestinationHostName, Method=RequestMethod, Url=RequestURL,
+            UA=RequestClientApplication),
+    (W3CIISLog | where TimeGenerated > ago(Window)
+        | project TimeGenerated, Src=cIP, Host=csHost, Method=csMethod, Url=csUriStem, UA=replace_string(csUserAgent, "+", " "));
+Web
+| summarize Requests=count(), Paths=dcount(tostring(split(Url, "?")[0])),
+    Registrations=countif(Method == "POST" and Url matches regex RegisterPath),
+    Deletes=countif(Method == "DELETE"),
+    AgentUA=countif(UA == "norma/0.4" or UA has "spa-api-recon" or UA has "HeadlessChrome" or UA == "Go-http-client/1.1"),
+    UAs=make_set(UA, 10), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated)
+    by Src, Host, Day=bin(TimeGenerated, 1d)
+// Several sign-ups from one address on one day, while it reads many distinct paths
+| where Registrations >= 2 and Paths >= 50
+| extend Strength = iff(AgentUA > 0, "sign-ups plus ARTEX client user agents", "sign-ups during probing")
+| project Day, Src, Host, Strength, Registrations, Paths, Requests, Deletes, AgentUA, UAs, FirstSeen, LastSeen
+| order by AgentUA desc, Registrations desc

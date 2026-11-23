@@ -1,0 +1,28 @@
+title: Unsigned JWT With alg none Sent to a Web Application
+id: 78ba682f-dd9b-592c-a387-3bd2c619e06b
+status: experimental
+description: |
+    Detects a JSON Web Token whose header decodes to alg none, sent in a query string. ARTEX sprays the
+    same unsigned token across dozens of SSO paths to test for signature bypass. An alg none token has
+    no legitimate use against a production SSO route.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.credential-access
+    - attack.t1606.001
+    - attack.initial-access
+    - attack.t1190
+logsource:
+    category: webserver
+detection:
+    selection:
+        cs-uri-query|contains:
+            - 'eyJhbGciOiJub25lIn0.'
+            - 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.'
+            - 'eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.'
+    condition: selection
+falsepositives:
+    - Security scanners testing for JWT signature bypass
+level: high

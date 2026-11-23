@@ -1,0 +1,28 @@
+title: AWS API Call Denied
+id: b0405c56-6546-5465-8f63-bda6bf3ece54
+status: experimental
+description: |
+    Detects denied AWS API calls. It is the base rule for the access denied sweep correlation, which
+    finds a new identity trying every discovery call it can think of.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://securitylabs.datadoghq.com/articles/artex-agentic-attacks-aws-environments/
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.discovery
+    - attack.t1580
+logsource:
+    product: aws
+    service: cloudtrail
+detection:
+    selection:
+        errorCode:
+            - 'AccessDenied'
+            - 'AccessDeniedException'
+            - 'UnauthorizedOperation'
+            - 'Client.UnauthorizedOperation'
+    condition: selection
+falsepositives:
+    - Misconfigured applications
+level: informational

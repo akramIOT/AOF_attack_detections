@@ -1,0 +1,10 @@
+// Cognito sign-up burst and admin attribute attempts (AWS CloudTrail integration)
+// ARTEX detections by ThreatDefence. https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// ES|QL hunt using ECS fields. Change the index pattern to match your data streams and baseline before alerting.
+FROM logs-aws.cloudtrail-*
+| WHERE @timestamp > NOW() - 30 days AND event.provider == "cognito-idp.amazonaws.com" AND event.action == "SignUp"
+| EVAL admin_attempt = CASE(aws.cloudtrail.error_message LIKE "*custom:isAdmin*" OR aws.cloudtrail.request_parameters LIKE "*custom:isAdmin*" OR aws.cloudtrail.error_message LIKE "*artex-*", 1, 0),
+    window = DATE_TRUNC(10 minutes, @timestamp)
+| STATS signups = COUNT(*), admin_attempts = SUM(admin_attempt) BY source.ip, user_agent.original, window
+| WHERE signups >= 20 OR admin_attempts > 0
+| SORT signups DESC

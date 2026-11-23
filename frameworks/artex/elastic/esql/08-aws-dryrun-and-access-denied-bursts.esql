@@ -1,0 +1,11 @@
+// EC2 DryRun bursts and access denied sweeps from one identity (AWS CloudTrail integration)
+// ARTEX detections by ThreatDefence. https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// ES|QL hunt using ECS fields. Change the index pattern to match your data streams and baseline before alerting.
+FROM logs-aws.cloudtrail-*
+| WHERE @timestamp > NOW() - 30 days
+| WHERE aws.cloudtrail.error_code IN ("Client.DryRunOperation", "AccessDenied", "AccessDeniedException", "UnauthorizedOperation", "Client.UnauthorizedOperation")
+| EVAL kind = CASE(aws.cloudtrail.error_code == "Client.DryRunOperation", "dryrun", "denied"), window = DATE_TRUNC(5 minutes, @timestamp)
+| STATS calls = COUNT(*), apis = COUNT_DISTINCT(event.action), services = COUNT_DISTINCT(event.provider)
+    BY aws.cloudtrail.user_identity.arn, source.ip, kind, window
+| WHERE (kind == "dryrun" AND calls >= 10) OR (kind == "denied" AND apis >= 15)
+| SORT calls DESC

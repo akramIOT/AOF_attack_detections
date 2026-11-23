@@ -1,0 +1,33 @@
+id: 7638a76d-d1fc-59e0-b917-31c87e9421a1
+name: ARTEX agent shell or recording proxy credential on a host
+description: |
+  A process carried a marker that only the ARTEX binary creates: its "bash" shim in a temporary artex-exec- folder
+  (server/execpriv.go, server/execpriv_unix.go:539-575), the MCP launcher argument "__artex-exec-drop", or the recording
+  proxy credential "artex-pace:artex-pace" that ARTEX puts in every agent shell's HTTP_PROXY (egress/pace.go:20).
+  Someone is running ARTEX on this host: an authorized tester, an insider or an intruder staging from your network.
+  ARTEX detections by ThreatDefence: https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+severity: High
+requiredDataConnectors:
+  - connectorId: MicrosoftThreatProtection
+    dataTypes:
+      - DeviceProcessEvents
+queryFrequency: 1h
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - Execution
+  - Discovery
+relevantTechniques:
+  - T1059.004
+  - T1046
+query: |
+  DeviceProcessEvents
+  | where FolderPath contains "/artex-exec-" or InitiatingProcessFolderPath contains "/artex-exec-"
+      or ProcessCommandLine contains "__artex-exec-drop" or ProcessCommandLine contains "artex-pace:artex-pace"
+      or InitiatingProcessCommandLine contains "__artex-exec-drop" or InitiatingProcessCommandLine contains "artex-pace:artex-pace"
+  | summarize Events=count(), Commands=make_set(ProcessCommandLine, 20), Accounts=make_set(AccountName, 5),
+      Parents=make_set(InitiatingProcessFolderPath, 5), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated)
+      by DeviceName, DeviceId
+version: 1.0.0
+kind: Scheduled

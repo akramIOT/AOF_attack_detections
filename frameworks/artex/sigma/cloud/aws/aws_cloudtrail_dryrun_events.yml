@@ -1,0 +1,27 @@
+title: EC2 DryRun Permission Test
+id: 7411689a-c171-519a-a539-429dbb24c823
+status: experimental
+description: |
+    Detects EC2 calls made with the DryRun flag. On its own this is a weak signal. It is the base rule
+    for the DryRun burst correlation, which looks for many such calls from one identity in a few
+    minutes.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://cloud.google.com/blog/topics/threat-intelligence/artex-and-friends-enter-agentic-offensive-frameworks
+    - https://securitylabs.datadoghq.com/articles/artex-agentic-attacks-aws-environments/
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.discovery
+    - attack.t1580
+logsource:
+    product: aws
+    service: cloudtrail
+detection:
+    selection:
+        eventSource: 'ec2.amazonaws.com'
+        errorCode: 'Client.DryRunOperation'
+    condition: selection
+falsepositives:
+    - Infrastructure-as-code tools validating permissions
+level: informational

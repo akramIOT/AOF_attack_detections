@@ -1,0 +1,38 @@
+title: ARTEX User Agent in AWS CloudTrail
+id: ea96b8da-687c-502e-b65b-938836e55638
+status: experimental
+description: |
+    Detects AWS API calls whose user agent names ARTEX.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://securitylabs.datadoghq.com/articles/artex-agentic-attacks-aws-environments/
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.discovery
+    - attack.t1580
+logsource:
+    product: aws
+    service: cloudtrail
+detection:
+    selection:
+        userAgent|contains:
+        - 'artex-readonly/'
+        - 'artex-pentest/'
+        - 'artex-audit/'
+        - 'artex-verify/'
+        - 'artex-spawn/'
+        - 'ARTEX-worker/'
+        - 'artex-enrich/'
+        - 'artex-i21861-canary'
+        - 'ARTeX-authorized-pentest'
+        - 'Mozilla/5.0 ARTeX'
+        - 'Mozilla/5.0 (ARTEX)'
+        - 'ArtExVerify/'
+        - 'ArtEx/1.0'
+        - 'scopeweaver'
+        - 'spa-api-recon'
+    condition: selection
+falsepositives:
+    - Authorized penetration tests that use ARTEX
+level: high

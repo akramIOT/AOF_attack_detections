@@ -1,0 +1,26 @@
+title: DNS Query for Payload Hosts Active in ARTEX Operator Toolkits
+id: bfe42b74-3709-50d9-ab8c-33f20bd53185
+status: experimental
+description: |
+    Detects lookups for payload hosts that ThreatDefence saw active in ARTEX operator toolkits on November 20, 2026.
+    Fortinet separately reports the vietnam852.com hosts serving Gh0st RAT and an XMRig miner to brute-forced SQL Servers.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://www.fortinet.com/blog/threat-research/t-sql-being-abused-to-deliver-malware-on-compromised-ms-sql-servers
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.command-and-control
+    - attack.t1105
+logsource:
+    category: dns_query
+detection:
+    selection:
+        QueryName|endswith:
+            - 'vietnam852.com'
+            - 'zhzy999.net'
+            - 'jiancai008.com'
+    condition: selection
+falsepositives:
+    - Unknown
+level: high

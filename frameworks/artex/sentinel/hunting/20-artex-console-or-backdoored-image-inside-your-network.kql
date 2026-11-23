@@ -1,0 +1,23 @@
+// An ARTEX console or a backdoored ARTEX image inside your network
+// ARTEX detections by ThreatDefence. Source: https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// Example hunt for Defender XDR advanced hunting. Test before alerting.
+// Someone running ARTEX on your own hosts is either an authorized tester, an insider or an intruder. Backdoored
+// container images (tomicdd/artex, congdonglinux/artex) also hand the host to a third party: BadByte reported
+// the console binary /app/artex spawning sh -c and a login API that accepts a captcha field.
+
+let ArtexHash = dynamic(["d5070f52262effe216b840711343bff8f2787f39208d887d8dfd9c673f8d1573"]);
+union isfuzzy=true
+    (DeviceProcessEvents
+        | where Timestamp > ago(30d)
+        | where SHA256 in (ArtexHash) or FolderPath endswith "/app/artex"
+            or (InitiatingProcessFolderPath endswith "/app/artex" and FileName in~ ("sh", "bash"))
+            or ProcessCommandLine has_any ("tomicdd/artex", "congdonglinux/artex", "Autumn-27/ARTEX")
+        | project Timestamp, DeviceName, Signal="process", Process=FileName, Path=FolderPath,
+            CommandLine=ProcessCommandLine, Detail=InitiatingProcessCommandLine),
+    (DeviceNetworkEvents
+        | where Timestamp > ago(30d)
+        | where ActionType == "ListeningConnectionCreated" and LocalPort in (8787, 8790, 8890)
+        | project Timestamp, DeviceName, Signal="listening port", Process=InitiatingProcessFileName,
+            Path=InitiatingProcessFolderPath, CommandLine=InitiatingProcessCommandLine,
+            Detail=strcat("port ", LocalPort))
+| order by Timestamp desc

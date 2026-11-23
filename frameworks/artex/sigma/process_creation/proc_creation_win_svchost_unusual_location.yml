@@ -1,0 +1,30 @@
+title: Svchost Running Outside the Windows System Folder
+id: eae4b702-9723-5393-8d23-37295c6d40ea
+status: experimental
+description: |
+    Detects svchost.exe started from any folder other than System32 or SysWOW64. In the VAPOR PANDA
+    campaign a renamed GameHook binary named svchost.exe side-loaded the BLOODALCHEMY backdoor.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://www.crowdstrike.com/en-us/blog/vapor-panda-uses-artex-to-scale-global-campaign/
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.stealth
+    - attack.t1036.005
+    - attack.t1574.001
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection:
+        Image|endswith: '\\svchost.exe'
+    filter_main_system:
+        Image|startswith:
+            - 'C:\\Windows\\System32\\'
+            - 'C:\\Windows\\SysWOW64\\'
+            - 'C:\\Windows\\WinSxS\\'
+    condition: selection and not 1 of filter_main_*
+falsepositives:
+    - Unknown
+level: high

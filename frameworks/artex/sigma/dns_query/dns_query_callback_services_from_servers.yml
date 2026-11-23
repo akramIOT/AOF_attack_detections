@@ -1,0 +1,32 @@
+title: DNS Query to Request Collection or DNS Callback Services
+id: 68a5326b-3c56-5371-bfd7-2cd1bda49314
+status: experimental
+description: |
+    Detects lookups for request-collection and DNS callback services. ARTEX agents posted command output
+    to webhook.site across hundreds of rotating URLs. These services are legitimate, so scope the rule
+    to servers, where they have no business purpose.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://cloud.google.com/blog/topics/threat-intelligence/artex-and-friends-enter-agentic-offensive-frameworks
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.exfiltration
+    - attack.t1567
+    - attack.command-and-control
+    - attack.t1102
+logsource:
+    category: dns_query
+detection:
+    selection:
+        QueryName|endswith:
+            - 'webhook.site'
+            - '.dnslog.cn'
+            - '.interact.sh'
+            - '.oast.fun'
+            - '.requestcatcher.com'
+            - '.pipedream.net'
+    condition: selection
+falsepositives:
+    - Developers testing webhooks from workstations. Scope to servers
+level: medium

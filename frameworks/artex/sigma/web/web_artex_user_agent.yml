@@ -1,0 +1,43 @@
+title: ARTEX Agentic Attack Framework User Agent in Web Logs
+id: 9a3d3644-79ed-503c-8927-5a788028bc32
+status: experimental
+description: |
+    Detects requests whose user agent names the ARTEX agentic penetration testing framework or its
+    renamed builds (ScopeWeaver, AntiFox). Operators often keep the defaults. Matching is case-sensitive
+    in some backends, so the list carries the observed spellings.
+references:
+    - https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+    - https://www.extrahop.com/blog/artext-inside-an-agentic-attack-framework
+    - https://www.reversinglabs.com/blog/threat-researchers-notebook-detection-strategies-for-artex-and-related-forks
+    - https://www.microsoft.com/en-us/security/blog/2026/10/21/storm-0940-uses-artex-agentic-ai-connectwise-supply-chain-compromise/
+author: ThreatDefence
+date: 2026-11-20
+tags:
+    - attack.reconnaissance
+    - attack.t1595.002
+    - attack.initial-access
+    - attack.t1190
+logsource:
+    category: webserver
+detection:
+    selection:
+        cs-user-agent|contains:
+        - 'artex-readonly/'
+        - 'artex-pentest/'
+        - 'artex-audit/'
+        - 'artex-verify/'
+        - 'artex-spawn/'
+        - 'ARTEX-worker/'
+        - 'artex-enrich/'
+        - 'artex-i21861-canary'
+        - 'ARTeX-authorized-pentest'
+        - 'Mozilla/5.0 ARTeX'
+        - 'Mozilla/5.0 (ARTEX)'
+        - 'ArtExVerify/'
+        - 'ArtEx/1.0'
+        - 'scopeweaver'
+        - 'spa-api-recon'
+    condition: selection
+falsepositives:
+    - Authorized penetration tests that use ARTEX
+level: high

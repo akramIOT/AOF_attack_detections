@@ -1,0 +1,11 @@
+// ARTEX artifact names in processes and files
+// ARTEX detections by ThreatDefence. https://threatdefence.com/article/artex-agentic-attack-framework-detection-hunting
+// ES|QL hunt using ECS fields. Change the index pattern to match your data streams and baseline before alerting.
+FROM logs-endpoint.events.*, logs-windows.sysmon_operational-*, auditbeat-*
+| WHERE @timestamp > NOW() - 90 days
+| WHERE process.command_line RLIKE ".*(artex-probe-|ArtexProbe|artx5v|art18-|ARTEX_WRITE_PROBE|ARTX_PERSIST_OK|artex_control_marker_zz9q).*"
+    OR file.name LIKE "artex-probe-*"
+    OR file.path LIKE "*ProgramData*artx5v*"
+    OR file.name IN ("cl1217.jsp", "f1219a.jsp", "z1219.jsp", "graphics-hook-filter64.dll", "graphics-hook_config.bin", "zzartx0000.php")
+| KEEP @timestamp, host.name, user.name, event.category, process.name, process.command_line, file.path
+| SORT @timestamp DESC
