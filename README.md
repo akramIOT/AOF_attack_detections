@@ -10,16 +10,17 @@ The content is rules, hunts, and indicators. A match is a lead. Rules are experi
 
 1. [The ARTEX AOF threat](#the-artex-aof-threat)
 2. [How the repository is split](#how-the-repository-is-split)
-3. [Directory map](#directory-map)
-4. [Deploy](#deploy)
-5. [Framework catalog](#framework-catalog)
-6. [Shared behaviors](#shared-behaviors)
-7. [Indicators and feeds](#indicators-and-feeds)
-8. [Confidence](#confidence)
-9. [Validate and regenerate](#validate-and-regenerate)
-10. [Contribute](#contribute)
-11. [Names and paths](#names-and-paths)
-12. [License](#license)
+3. [Module structure](#module-structure)
+4. [Directory map](#directory-map)
+5. [Deploy](#deploy)
+6. [Framework catalog](#framework-catalog)
+7. [Shared behaviors](#shared-behaviors)
+8. [Indicators and feeds](#indicators-and-feeds)
+9. [Confidence](#confidence)
+10. [Validate and regenerate](#validate-and-regenerate)
+11. [Contribute](#contribute)
+12. [Names and paths](#names-and-paths)
+13. [License](#license)
 
 ## The ARTEX AOF threat
 
@@ -53,6 +54,52 @@ Two layers, on purpose.
 
 [`iocs/indicators.csv`](iocs/indicators.csv) is the only hand-edited indicator list. [`feeds/`](feeds), the Zeek intel files, and the Suricata address rules are generated from it.
 
+## Module structure
+
+`iocs/indicators.csv` is the only indicator list edited by hand. `tools/build_feeds.py` writes the feeds and the per-framework address rules. Sigma rules in both detection layers are the input to `tools/convert.py`. `tools/validate.py` checks the sources and the generated output.
+
+```mermaid
+flowchart TD
+  iocs["iocs/indicators.csv"]
+  build["tools/build_feeds.py"]
+  iocs --> build
+  build --> feeds["feeds/: STIX, Sentinel watchlist, plain lists"]
+  build --> byfw["feeds/by-framework/"]
+  build --> intel["frameworks/*/zeek/intel/"]
+  build --> iprules["frameworks/*/suricata/*-ip.rules"]
+  build --> lookup["frameworks/artex/splunk/lookups/"]
+
+  frameworks["frameworks/: one folder per AOF"]
+  behaviors["behaviors/: one rule set for every AOF"]
+  frameworks --> fwsigma["framework Sigma rules"]
+  behaviors --> behsigma["behavior Sigma rules"]
+  fwsigma --> convert["tools/convert.py"]
+  behsigma --> convert
+  convert --> generated["generated/: Splunk, Sentinel ASIM, Elastic"]
+
+  frameworks --> hand["Hand-written Sentinel, Suricata, YARA, Zeek, Elastic, osquery"]
+  behaviors --> hand
+
+  validate["tools/validate.py"]
+  iocs -.-> validate
+  frameworks -.-> validate
+  behaviors -.-> validate
+  feeds -.-> validate
+  generated -.-> validate
+```
+
+Each framework folder has the same modules. Suricata address rules and Zeek intel are generated. The other files are written by hand. ARTEX also has a Splunk app, Elastic rules, an osquery pack, and network tests. Agent Zero has no `source-code-signals.md`, `coverage.md`, or `hunting-order.md`.
+
+```mermaid
+flowchart LR
+  docs["README, source-code signals, coverage, hunting order"]
+  docs --> sentinel["sentinel/ hunting and analytics"]
+  docs --> sigma["sigma/"]
+  docs --> suricata["suricata/ hand-written plus generated address rules"]
+  docs --> yara["yara/"]
+  docs --> zeek["zeek/intel/ generated"]
+```
+
 ## Directory map
 
 ```text
@@ -66,7 +113,7 @@ tools/                       feed builder, Sigma converter, validator
 docs/adding-a-framework.md   how to add the next framework
 ```
 
-A framework folder follows one shape. Generated files are the Suricata address rules and the Zeek intel file. Do not edit those by hand.
+The file tree for one framework folder matches the diagram above. Do not edit the generated Suricata address rules or the Zeek intel file by hand.
 
 ```text
 frameworks/<name>/
@@ -81,8 +128,6 @@ frameworks/<name>/
   yara/
   zeek/intel/               generated
 ```
-
-ARTEX also has a Splunk app, Elastic rules, an osquery pack, and network tests. Agent Zero has no `source-code-signals.md`, `coverage.md`, or `hunting-order.md`. Its write-up is the folder README.
 
 ## Deploy
 
