@@ -1,0 +1,4 @@
+# PentAGI Console API Requested Through a Proxy
+# Sigma id 4aa64139-4b2a-5e14-8e9d-6da00255e620, pipeline sentinel_asim
+imWebSession
+| where Url contains "/api/v1/proxy/updates/pentagi/check" or HttpHost =~ "update.pentagi.com"

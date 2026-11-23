@@ -1,0 +1,4 @@
+# PentAGI Agent Command Wrapper
+# Sigma id eb9c13d9-3bf1-59c9-9201-c1a85e1bd94c, pipeline sentinel_asim
+imProcessCreate
+| where TargetProcessCommandLine contains "trap \"\" HUP" and TargetProcessCommandLine contains "/proc/self/oom_score_adj" and TargetProcessCommandLine contains "exec sh -c \"$0\""

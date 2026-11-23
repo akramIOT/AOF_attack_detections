@@ -1,0 +1,4 @@
+# Carbonato Docker Worm Host Escape or Persistence
+# Sigma id 59355a64-b6fd-5c50-8370-eea0f297294c, pipeline sentinel_asim
+imProcessCreate
+| where (TargetProcessCommandLine contains "nsenter" and TargetProcessCommandLine contains "-t 1" and TargetProcessCommandLine contains "-m -u -n -i") or (TargetProcessCommandLine contains "netns-probe" or TargetProcessCommandLine contains "system/resolved" or TargetProcessCommandLine contains ".docker-network-monitor" or TargetProcessCommandLine contains "/opt/gh0st/" or TargetProcessCommandLine contains "CARBONATO_API_KEY") or TargetProcessName =~ "/usr/sbin/systemd-logind"

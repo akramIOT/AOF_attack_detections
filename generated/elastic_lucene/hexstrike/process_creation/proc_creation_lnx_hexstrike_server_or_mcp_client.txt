@@ -1,0 +1,3 @@
+# HexStrike Server or MCP Client Process
+# Sigma id 23f271ff-3e26-57ca-81ec-347c96db618e, pipeline ecs_windows
+(TargetProcessCommandLine:(*hexstrike_server.py* OR *hexstrike_mcp.py*)) OR ActingProcessCommandLine:*hexstrike_server.py*

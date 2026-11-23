@@ -1,0 +1,3 @@
+# Web or Database Service Spawns a Shell or Download Tool on Windows
+# Sigma id 6a64daf6-9e1b-57ab-b9fe-cf43e37123b8, pipeline ecs_windows
+((process.parent.name.caseless:(*\\w3wp.exe OR *\\httpd.exe OR *\\tomcat.exe OR *\\java.exe OR *\\node.exe OR *\\php\-cgi.exe OR *\\sqlservr.exe OR *\\mysqld.exe)) OR (winlog.event_data.ActingProcessName:(*\\w3wp.exe OR *\\httpd.exe OR *\\tomcat.exe OR *\\java.exe OR *\\node.exe OR *\\php\-cgi.exe OR *\\sqlservr.exe OR *\\mysqld.exe))) AND (winlog.event_data.TargetProcessName:(*\\cmd.exe OR *\\powershell.exe OR *\\pwsh.exe OR *\\curl.exe OR *\\certutil.exe OR *\\bitsadmin.exe OR *\\whoami.exe OR *\\tasklist.exe))

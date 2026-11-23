@@ -1,0 +1,3 @@
+# DNS Query for a Canary Token Domain
+# Sigma id 224c0901-3bd8-5c3e-9b9f-085b2606bce6, pipeline ecs_windows
+QueryName:(*.canarytokens.com OR *.canarytokens.org OR *.canary.tools)

@@ -1,0 +1,4 @@
+# ARTEX Artifact Names in Command Lines
+# Sigma id a939cd68-134a-5626-a4b7-c84fc55788fa, pipeline sentinel_asim
+imProcessCreate
+| where TargetProcessCommandLine contains "artex-probe-" or TargetProcessCommandLine contains "ArtexProbe" or TargetProcessCommandLine contains "\\ProgramData\\artx5v" or TargetProcessCommandLine contains "art18-" or TargetProcessCommandLine contains "ARTEX_WRITE_PROBE" or TargetProcessCommandLine contains "ARTX_PERSIST_OK" or TargetProcessCommandLine contains "artex_control_marker_zz9q"

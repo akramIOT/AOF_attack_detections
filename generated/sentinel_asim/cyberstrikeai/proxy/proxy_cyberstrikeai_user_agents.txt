@@ -1,0 +1,4 @@
+# CyberStrikeAI User Agents or Implant Check-in in Proxy Logs
+# Sigma id f8900a2b-5be3-5f5b-b701-c0f420ecef95, pipeline sentinel_asim
+imWebSession
+| where (HttpUserAgent startswith "CyberStrikeAI/" or HttpUserAgent startswith "CyberStrikeAI-Docker-build") or HttpUserAgent contains "CyberStrikeAI-WebShell/" or HttpUserAgent =~ "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"

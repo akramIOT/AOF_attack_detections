@@ -1,0 +1,3 @@
+# ARTEX User Agent in AWS CloudTrail
+# Sigma id ea96b8da-687c-502e-b65b-938836e55638, pipeline ecs_windows
+userAgent:(*artex\-readonly\/* OR *artex\-pentest\/* OR *artex\-audit\/* OR *artex\-verify\/* OR *artex\-spawn\/* OR *ARTEX\-worker\/* OR *artex\-enrich\/* OR *artex\-i21861\-canary* OR *ARTeX\-authorized\-pentest* OR *Mozilla\/5.0\ ARTeX* OR *Mozilla\/5.0\ \(ARTEX\)* OR *ArtExVerify\/* OR *ArtEx\/1.0* OR *scopeweaver* OR *spa\-api\-recon*)

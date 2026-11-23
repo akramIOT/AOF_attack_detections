@@ -1,0 +1,3 @@
+# DNS Query for Payload Hosts Active in ARTEX Operator Toolkits
+# Sigma id bfe42b74-3709-50d9-ab8c-33f20bd53185, pipeline ecs_windows
+QueryName:(*vietnam852.com OR *zhzy999.net OR *jiancai008.com)

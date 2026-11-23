@@ -1,0 +1,3 @@
+# ARTEX Agentic Attack Framework User Agent in Proxy Logs
+# Sigma id 22f584db-3e7c-523b-ae39-7d0c793a8603, pipeline ecs_windows
+HttpUserAgent:(*artex\-readonly\/* OR *artex\-pentest\/* OR *artex\-audit\/* OR *artex\-verify\/* OR *artex\-spawn\/* OR *ARTEX\-worker\/* OR *artex\-enrich\/* OR *artex\-i21861\-canary* OR *ARTeX\-authorized\-pentest* OR *Mozilla\/5.0\ ARTeX* OR *Mozilla\/5.0\ \(ARTEX\)* OR *ArtExVerify\/* OR *ArtEx\/1.0* OR *scopeweaver* OR *spa\-api\-recon*)

@@ -1,0 +1,4 @@
+# CyberStrikeAI Implant Windows Persistence Named SystemUpdate
+# Sigma id a8da8a64-d5a3-597d-a8a7-9a968b5896a7, pipeline sentinel_asim
+imProcessCreate
+| where (TargetProcessCommandLine contains "reg" and TargetProcessCommandLine contains " add " and TargetProcessCommandLine contains "\\CurrentVersion\\Run" and TargetProcessCommandLine contains "SystemUpdate") or (TargetProcessCommandLine contains "schtasks" and TargetProcessCommandLine contains "/create" and TargetProcessCommandLine contains "SystemUpdate")

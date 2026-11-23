@@ -1,0 +1,3 @@
+# CyberStrikeAI Webshell Manager User Agent or OS Probe in Web Logs
+# Sigma id b7dfb449-f158-50ef-bedf-fda0cfd8cb79, pipeline ecs_windows
+cs-user-agent:*CyberStrikeAI\-WebShell\/* OR (cs-uri-query:(*OSPROBE_* OR *OSPROBE%5F*))

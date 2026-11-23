@@ -1,0 +1,3 @@
+# ARTEX Probe Marker in HTTP Request
+# Sigma id 11753424-03dd-59b0-8909-a8e0a05c313f, pipeline ecs_windows
+(cs-uri-query:(*ARTEX_WRITE_PROBE* OR *ARTX_PERSIST_OK* OR *artex_control_marker_zz9q* OR *ARTEX\-PROBE\-* OR *artex\-probe\-*)) OR cs-headers:*X\-ARTX\-KEY*

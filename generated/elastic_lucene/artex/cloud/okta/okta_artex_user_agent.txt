@@ -1,0 +1,3 @@
+# ARTEX User Agent in Okta System Log
+# Sigma id 5997ac8a-f037-5db9-84ed-fe52d0b93c28, pipeline ecs_windows
+client.userAgent.rawUserAgent:(*artex\-readonly\/* OR *artex\-pentest\/* OR *artex\-audit\/* OR *artex\-verify\/* OR *artex\-spawn\/* OR *ARTEX\-worker\/* OR *artex\-enrich\/* OR *artex\-i21861\-canary* OR *ARTeX\-authorized\-pentest* OR *Mozilla\/5.0\ ARTeX* OR *Mozilla\/5.0\ \(ARTEX\)* OR *ArtExVerify\/* OR *ArtEx\/1.0* OR *scopeweaver* OR *spa\-api\-recon*)

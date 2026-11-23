@@ -1,0 +1,3 @@
+# ARTEX Placeholder Probe Paths
+# Sigma id a3f72892-cf08-5127-acdd-8734b1e8a83b, pipeline ecs_windows
+cs-uri-stem:(*\/zzz\-nonexistent\-xyz123* OR *zzz_nonexistent_abc.txt* OR *Notexist\-xyz*)

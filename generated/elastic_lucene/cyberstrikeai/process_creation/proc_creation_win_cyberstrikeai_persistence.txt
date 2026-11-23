@@ -1,0 +1,3 @@
+# CyberStrikeAI Implant Windows Persistence Named SystemUpdate
+# Sigma id a8da8a64-d5a3-597d-a8a7-9a968b5896a7, pipeline ecs_windows
+(winlog.event_data.TargetProcessCommandLine:*reg* AND winlog.event_data.TargetProcessCommandLine:*\ add\ * AND winlog.event_data.TargetProcessCommandLine:*\\CurrentVersion\\Run* AND winlog.event_data.TargetProcessCommandLine:*SystemUpdate*) OR (winlog.event_data.TargetProcessCommandLine:*schtasks* AND winlog.event_data.TargetProcessCommandLine:*\/create* AND winlog.event_data.TargetProcessCommandLine:*SystemUpdate*)

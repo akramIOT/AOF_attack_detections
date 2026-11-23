@@ -1,0 +1,3 @@
+# Strix AI Pentest Agent CLI or Sandbox
+# Sigma id f15a6887-4f5c-590b-bfe3-829a57781f3b, pipeline ecs_windows
+TargetProcessCommandLine:/(^|[\/\\\s])strix(\.exe)?\s.*\s(--target|-t|--target-list|--scan-mode|--resume)[\s=]/ OR (TargetProcessCommandLine:(*strix\-agent* OR *usestrix\/strix\-sandbox*)) OR (TargetProcessCommandLine:*caido\-cli* AND TargetProcessCommandLine:*\-\-allow\-guests*)

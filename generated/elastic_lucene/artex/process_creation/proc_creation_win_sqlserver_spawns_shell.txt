@@ -1,0 +1,3 @@
+# SQL Server Spawns a Shell Through xp_cmdshell
+# Sigma id 5a82242d-3e20-5373-9852-830e386a2253, pipeline ecs_windows
+(process.parent.name.caseless:*\\sqlservr.exe OR winlog.event_data.ActingProcessName:*\\sqlservr.exe) AND (winlog.event_data.TargetProcessName:(*\\cmd.exe OR *\\powershell.exe OR *\\pwsh.exe OR *\\certutil.exe OR *\\bitsadmin.exe))

@@ -1,0 +1,4 @@
+# Windows System Binary Name Running From the Wrong Folder
+# Sigma id d7ffbe3f-7838-53ca-89cc-d441a1088634, pipeline sentinel_asim
+imProcessCreate
+| where ((TargetProcessName endswith "\\smss.exe" or TargetProcessName endswith "\\winlogon.exe" or TargetProcessName endswith "\\dllhost.exe" or TargetProcessName endswith "\\sihost.exe") and (not((TargetProcessName startswith "C:\\Windows\\System32\\" or TargetProcessName startswith "C:\\Windows\\SysWOW64\\")))) or (TargetProcessName endswith "\\MicrosoftEdgeUpdate.exe" and (not((TargetProcessName contains "\\Microsoft\\EdgeUpdate\\" or TargetProcessName contains "\\Microsoft\\Temp\\"))))

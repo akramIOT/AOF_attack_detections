@@ -1,0 +1,4 @@
+# Svchost Running Outside the Windows System Folder
+# Sigma id eae4b702-9723-5393-8d23-37295c6d40ea, pipeline sentinel_asim
+imProcessCreate
+| where TargetProcessName endswith "\\svchost.exe" and (not((TargetProcessName startswith "C:\\Windows\\System32\\" or TargetProcessName startswith "C:\\Windows\\SysWOW64\\" or TargetProcessName startswith "C:\\Windows\\WinSxS\\")))

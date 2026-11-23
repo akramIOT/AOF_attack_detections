@@ -1,0 +1,4 @@
+# SQL Server Spawns a Shell Through xp_cmdshell
+# Sigma id 5a82242d-3e20-5373-9852-830e386a2253, pipeline sentinel_asim
+imProcessCreate
+| where (ParentProcessName endswith "\\sqlservr.exe" or ActingProcessName endswith "\\sqlservr.exe") and (TargetProcessName endswith "\\cmd.exe" or TargetProcessName endswith "\\powershell.exe" or TargetProcessName endswith "\\pwsh.exe" or TargetProcessName endswith "\\certutil.exe" or TargetProcessName endswith "\\bitsadmin.exe")

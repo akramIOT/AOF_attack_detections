@@ -1,0 +1,3 @@
+# AI Agent CLI in Auto-Approve Mode Starts an Attack Tool
+# Sigma id 88fc59b1-a5c1-5229-9753-e11f9a5c4fc0, pipeline ecs_windows
+(TargetProcessName:(*\/nmap OR *\/naabu OR *\/nuclei OR *\/katana OR *\/dalfox OR *\/ffuf OR *\/sqlmap OR *\/nikto OR *\/kerbrute OR *\/netexec OR *\/nxc OR *\/bloodyAD OR *\/coercer OR *\/chisel OR *\/cloudfox)) AND ((ActingProcessCommandLine:(*\-\-dangerously\-skip\-permissions* OR *\-\-dangerously\-bypass\-approvals\-and\-sandbox* OR *\-\-provider\ cairn*)) OR ((ActingProcessCommandLine:(*qwen* OR *kimi*)) AND ActingProcessCommandLine:/(\s--yolo\b|\s-y\b|\s--yes\b|\s--auto-approve\b|--approval-mode[\s=]+yolo)/))

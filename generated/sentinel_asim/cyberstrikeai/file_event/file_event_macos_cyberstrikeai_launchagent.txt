@@ -1,0 +1,4 @@
+# CyberStrikeAI Implant LaunchAgent com.apple.systemupdate
+# Sigma id 2ba060cd-8351-51cb-82e8-1adef3c38d02, pipeline sentinel_asim
+imFileEvent
+| where TargetFileName endswith "/Library/LaunchAgents/com.apple.systemupdate.plist"

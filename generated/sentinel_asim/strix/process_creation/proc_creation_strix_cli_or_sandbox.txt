@@ -1,0 +1,4 @@
+# Strix AI Pentest Agent CLI or Sandbox
+# Sigma id f15a6887-4f5c-590b-bfe3-829a57781f3b, pipeline sentinel_asim
+imProcessCreate
+| where TargetProcessCommandLine matches regex "(^|[/\\\\\\s])strix(\\.exe)?\\s.*\\s(--target|-t|--target-list|--scan-mode|--resume)[\\s=]" or (TargetProcessCommandLine contains "strix-agent" or TargetProcessCommandLine contains "usestrix/strix-sandbox") or (TargetProcessCommandLine contains "caido-cli" and TargetProcessCommandLine contains "--allow-guests")

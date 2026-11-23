@@ -1,0 +1,4 @@
+# JSP Web Shell Names Seen in ARTEX Intrusions
+# Sigma id da2a1f27-1099-5c19-ab6f-820c9b3b1e6a, pipeline sentinel_asim
+imFileEvent
+| where TargetFileName endswith "/cl1217.jsp" or TargetFileName endswith "/f1219a.jsp" or TargetFileName endswith "/z1219.jsp" or TargetFileName endswith "\\cl1217.jsp" or TargetFileName endswith "\\f1219a.jsp" or TargetFileName endswith "\\z1219.jsp"

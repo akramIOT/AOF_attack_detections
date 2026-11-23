@@ -1,0 +1,4 @@
+# ARTEX Agentic Attack Framework User Agent in Proxy Logs
+# Sigma id 22f584db-3e7c-523b-ae39-7d0c793a8603, pipeline sentinel_asim
+imWebSession
+| where HttpUserAgent contains "artex-readonly/" or HttpUserAgent contains "artex-pentest/" or HttpUserAgent contains "artex-audit/" or HttpUserAgent contains "artex-verify/" or HttpUserAgent contains "artex-spawn/" or HttpUserAgent contains "ARTEX-worker/" or HttpUserAgent contains "artex-enrich/" or HttpUserAgent contains "artex-i21861-canary" or HttpUserAgent contains "ARTeX-authorized-pentest" or HttpUserAgent contains "Mozilla/5.0 ARTeX" or HttpUserAgent contains "Mozilla/5.0 (ARTEX)" or HttpUserAgent contains "ArtExVerify/" or HttpUserAgent contains "ArtEx/1.0" or HttpUserAgent contains "scopeweaver" or HttpUserAgent contains "spa-api-recon"

@@ -1,0 +1,4 @@
+# HexStrike Tool API Requested Through a Proxy
+# Sigma id c4520661-3276-5c29-932a-38a5620eea04, pipeline sentinel_asim
+imWebSession
+| where Url contains ":8888/api/tools/" or Url contains ":8888/api/command"

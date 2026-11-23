@@ -1,0 +1,4 @@
+# Cairn Agent Worker or Dispatcher Command Line
+# Sigma id 47a4767c-bd74-5162-82ff-286d6b159e35, pipeline sentinel_asim
+imProcessCreate
+| where TargetProcessCommandLine contains "model_provider=\"cairn\"" or TargetProcessCommandLine contains "model_providers.cairn.base_url" or TargetProcessCommandLine contains "--provider cairn" or TargetProcessCommandLine contains "/tmp/cairn-pi/" or TargetProcessCommandLine contains "/tmp/cairn-prompts/" or TargetProcessCommandLine contains "cairn dispatch --config" or TargetProcessCommandLine contains "cairn-dispatch-" or TargetProcessCommandLine contains "cairn-worker-container"

@@ -1,0 +1,4 @@
+# Hermes Agent With Approvals Off or Its Jailbreak Skill
+# Sigma id 6474a9dc-13b9-5160-8188-742e5eee8231, pipeline sentinel_asim
+imProcessCreate
+| where (TargetProcessCommandLine matches regex "(^|[/\\\\\\s])hermes(\\.exe)?(\\s|$)|hermes_cli|run_agent\\.py|/\\.hermes/" and (TargetProcessCommandLine contains "--yolo" or TargetProcessCommandLine contains "HERMES_YOLO_MODE")) or (TargetProcessCommandLine contains "load_godmode.py" or TargetProcessCommandLine contains "auto_jailbreak.py" or TargetProcessCommandLine contains "parseltongue.py" or TargetProcessCommandLine contains "godmode_race.py")

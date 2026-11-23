@@ -1,0 +1,4 @@
+# HexStrike Server or MCP Client Process
+# Sigma id 23f271ff-3e26-57ca-81ec-347c96db618e, pipeline sentinel_asim
+imProcessCreate
+| where (TargetProcessCommandLine contains "hexstrike_server.py" or TargetProcessCommandLine contains "hexstrike_mcp.py") or ActingProcessCommandLine contains "hexstrike_server.py"

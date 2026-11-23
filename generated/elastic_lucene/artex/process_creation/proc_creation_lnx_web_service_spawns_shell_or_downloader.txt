@@ -1,0 +1,3 @@
+# Web or Database Service Spawns a Shell or Download Tool on Linux
+# Sigma id 7aa7f15b-752d-52d6-b1c3-8ae93c6552f7, pipeline ecs_windows
+(((ParentProcessName:(*\/nginx OR *\/httpd OR *\/apache2 OR *\/php\-fpm OR *\/java OR *\/node OR *\/mysqld OR *\/mariadbd OR *\/postgres)) OR (ActingProcessName:(*\/nginx OR *\/httpd OR *\/apache2 OR *\/php\-fpm OR *\/java OR *\/node OR *\/mysqld OR *\/mariadbd OR *\/postgres))) OR (ParentProcessName:*\/php\-fpm* OR ActingProcessName:*\/php\-fpm*)) AND (TargetProcessName:(*\/sh OR *\/bash OR *\/dash OR *\/curl OR *\/wget OR *\/nc OR *\/ncat OR *\/socat OR *\/busybox))

@@ -1,0 +1,4 @@
+# CyberStrikeAI Implant Linux Persistence or curl Beacon
+# Sigma id 292a54b3-11a5-5766-a339-5e3c2d90988b, pipeline sentinel_asim
+imProcessCreate
+| where (TargetProcessCommandLine contains "@reboot" and TargetProcessCommandLine contains "sort -u | crontab -") or TargetProcessCommandLine contains "X-Implant-Token" or TargetProcessCommandLine contains "&>/dev/null &) # cs"
