@@ -1,0 +1,55 @@
+title: AI Agent CLI in Auto-Approve Mode Starts an Attack Tool
+id: 88fc59b1-a5c1-5229-9753-e11f9a5c4fc0
+status: experimental
+description: |
+    Detects an attack tool started by a shell whose parent is an AI agent CLI running with approval prompts switched
+    off: Qwen Code or Kimi CLI with --yolo or --auto-approve, Claude Code (Cairn runs it on DeepSeek), Codex or Cairn's
+    Pi workers. The model behind it does not matter; this is agentic AI running an attack.
+references:
+    - https://github.com/oritera/Cairn
+    - https://github.com/QwenLM/qwen-code
+    - https://github.com/MoonshotAI/kimi-cli
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.execution
+    - attack.t1059
+    - attack.discovery
+    - attack.t1046
+logsource:
+    product: linux
+    category: process_creation
+detection:
+    selection_tool:
+        Image|endswith:
+            - '/nmap'
+            - '/naabu'
+            - '/nuclei'
+            - '/katana'
+            - '/dalfox'
+            - '/ffuf'
+            - '/sqlmap'
+            - '/nikto'
+            - '/kerbrute'
+            - '/netexec'
+            - '/nxc'
+            - '/bloodyAD'
+            - '/coercer'
+            - '/chisel'
+            - '/cloudfox'
+    selection_parent:
+        ParentCommandLine|contains:
+            - '--dangerously-skip-permissions'
+            - '--dangerously-bypass-approvals-and-sandbox'
+            - '--provider cairn'
+    selection_parent_cli:
+        ParentCommandLine|contains:
+            - 'qwen'
+            - 'kimi'
+    selection_parent_yolo:
+        ParentCommandLine|re: '(\s--yolo\b|\s-y\b|\s--yes\b|\s--auto-approve\b|--approval-mode[\s=]+yolo)'
+    condition: selection_tool and (selection_parent or (selection_parent_cli and selection_parent_yolo))
+falsepositives:
+    - Developers who use AI agents for authorized security testing
+level: high

@@ -1,0 +1,33 @@
+// Servers resolving out-of-band testing domains: blind bugs being confirmed against you
+// AOF attack detections by ThreatDefence (cross-framework behavior). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting and Microsoft Sentinel DNS logs. Test and baseline before alerting.
+// Agents confirm blind SQL injection, SSRF, XXE, command injection and log4j-style bugs by making the target look up or
+// fetch a unique name under a callback service, then checking the service for the hit. Strix's sandbox ships
+// interactsh-client and its skills tell the agent to use *.oast.fun; nuclei uses the same interactsh servers; CyberStrikeAI's
+// operators used dnslog.cn; Burp uses oastify.com. When one of YOUR servers resolves or contacts one of these names, a
+// payload ran on it, and the process that did it is the vulnerable one. Pentests and bug bounty hunters do this too.
+
+let Window = 14d;
+let OOB = dynamic(["oast.fun", "oast.pro", "oast.live", "oast.site", "oast.online", "oast.me", "interact.sh", "oastify.com", "burpcollaborator.net", "dnslog.cn", "ceye.io", "requestrepo.com"]);
+union isfuzzy=true
+    (DeviceNetworkEvents
+        | where Timestamp > ago(Window)
+        | where RemoteUrl has_any (OOB)
+        | project Timestamp, DeviceName, Source="DeviceNetworkEvents", Name=RemoteUrl,
+            Process=strcat(InitiatingProcessFileName, " ", substring(InitiatingProcessCommandLine, 0, 200))),
+    (DeviceEvents
+        | where Timestamp > ago(Window)
+        | where ActionType == "DnsQueryResponse"
+        | extend Name = tostring(parse_json(AdditionalFields).DnsQueryString)
+        | where Name has_any (OOB)
+        | project Timestamp, DeviceName, Source="DeviceEvents DNS", Name,
+            Process=strcat(InitiatingProcessFileName, " ", substring(InitiatingProcessCommandLine, 0, 200))),
+    (DnsEvents
+        | where TimeGenerated > ago(Window)
+        | where Name has_any (OOB)
+        | project Timestamp=TimeGenerated, DeviceName=Computer, Source="DnsEvents", Name, Process=ClientIP)
+// The unique label in front of the service name ties a lookup to one payload
+| extend Service = extract(@"([a-z0-9-]+\.[a-z]+)$", 1, tolower(Name))
+| summarize Lookups=count(), Names=make_set(Name, 10), Processes=make_set(Process, 10), FirstSeen=min(Timestamp), LastSeen=max(Timestamp)
+    by DeviceName, Service
+| order by FirstSeen desc

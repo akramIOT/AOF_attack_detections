@@ -1,0 +1,37 @@
+title: DNS Query for an Out-of-Band Testing Domain
+id: 6990b259-a615-5702-bb24-e8a9867addf1
+status: experimental
+description: |
+    Detects lookups of out-of-band callback services (interactsh oast.* servers, Burp Collaborator, dnslog.cn and others).
+    Agents such as Strix use them to confirm blind injection, SSRF and XXE. From a server, a hit means a payload ran there.
+references:
+    - https://github.com/projectdiscovery/interactsh
+    - https://github.com/usestrix/strix
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.initial-access
+    - attack.t1190
+logsource:
+    category: dns_query
+detection:
+    selection:
+        QueryName|endswith:
+            - '.oast.fun'
+            - '.oast.pro'
+            - '.oast.live'
+            - '.oast.site'
+            - '.oast.online'
+            - '.oast.me'
+            - '.interact.sh'
+            - '.oastify.com'
+            - '.burpcollaborator.net'
+            - '.dnslog.cn'
+            - '.ceye.io'
+            - '.requestrepo.com'
+    condition: selection
+falsepositives:
+    - Authorized penetration tests and bug bounty research against your servers
+    - Security engineers testing interactsh or Burp from workstations
+level: high

@@ -1,0 +1,28 @@
+title: DNS Query for a Canary Token Domain
+id: 224c0901-3bd8-5c3e-9b9f-085b2606bce6
+status: experimental
+description: |
+    Detects lookups of canary-token services. A canary token is a DNS name planted so that reading a file, variable or
+    secret makes the host call home. From a server, a hit means something there read a token. Agents that search for
+    credentials do this. Thinkst Canarytokens use canarytokens.com and canarytokens.org. Thinkst Canary uses canary.tools.
+references:
+    - https://github.com/thinkst/canarytokens
+    - https://docs.canarytokens.org/
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: AOF
+date: 2026-11-21
+tags:
+    - attack.credential-access
+    - attack.t1552
+logsource:
+    category: dns_query
+detection:
+    selection:
+        QueryName|endswith:
+            - '.canarytokens.com'
+            - '.canarytokens.org'
+            - '.canary.tools'
+    condition: selection
+falsepositives:
+    - Security staff testing a canary token from a workstation or server
+level: high

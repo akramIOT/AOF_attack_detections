@@ -1,0 +1,39 @@
+id: d26760e9-6ec3-5eec-830b-5a20b884c956
+name: AI agent CLI in auto-approve mode starts attack tools
+description: |
+  An AI agent CLI running with its approval prompts switched off started a scanner, a Kerberos or SMB attack tool or an
+  exploit kit: Qwen Code or Kimi CLI with --yolo / -y / --auto-approve / --approval-mode yolo, Claude Code with
+  --dangerously-skip-permissions (Cairn runs it on DeepSeek), Codex with --dangerously-bypass-approvals-and-sandbox, or
+  Cairn's Pi and Codex workers. Whatever model is behind it, this is agentic AI running an attack.
+  AOF attack detections by ThreatDefence (cross-framework behavior): https://github.com/ThreatDefence/AOF_attack_detections
+severity: High
+requiredDataConnectors:
+  - connectorId: MicrosoftThreatProtection
+    dataTypes: []
+queryFrequency: 1h
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - Execution
+  - Discovery
+  - CredentialAccess
+relevantTechniques:
+  - T1059
+  - T1046
+  - T1110
+query: |
+  let AttackTools = dynamic(["nmap", "naabu", "nuclei", "katana", "dalfox", "ffuf", "gobuster", "dirsearch", "nikto", "sqlmap", "wpscan", "hydra", "kerbrute", "netexec", "nxc", "crackmapexec", "bloodyad", "coercer", "enum4linux-ng", "chisel", "pwncat", "evil-winrm", "cloudfox", "msfconsole"]);
+  let Agents = DeviceProcessEvents
+      | where ProcessCommandLine contains "--dangerously-skip-permissions" or ProcessCommandLine contains "--dangerously-bypass-approvals-and-sandbox"
+          or ProcessCommandLine contains "model_provider=\"cairn\"" or ProcessCommandLine contains "--provider cairn"
+          or (ProcessCommandLine matches regex @'(^|[/\\\s])(qwen|kimi)(\.exe|\.cmd|\.js)?(\s|"|$)|@qwen-code/|kimi[-_]cli'
+              and ProcessCommandLine matches regex @"(\s--yolo\b|\s-y\b|\s--yes\b|\s--auto-approve\b|--approval-mode[\s=]+yolo)")
+      | project DeviceId, AgentPid=ProcessId, AgentTime=TimeGenerated, AgentCmd=substring(ProcessCommandLine, 0, 300);
+  DeviceProcessEvents
+  | where tolower(FileName) in (AttackTools) or ProcessCommandLine has_any ("impacket-", "ysoserial", "jwt_tool")
+  | join kind=inner Agents on DeviceId
+  | where TimeGenerated between (AgentTime .. (AgentTime + 2h)) and (InitiatingProcessParentId == AgentPid or InitiatingProcessId == AgentPid)
+  | summarize Tools=make_set(FileName, 20), Commands=make_set(substring(ProcessCommandLine, 0, 200), 10), FirstSeen=min(TimeGenerated) by DeviceName, AccountName, AgentCmd
+version: 1.0.0
+kind: Scheduled

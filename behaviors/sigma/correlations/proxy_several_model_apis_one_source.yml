@@ -1,0 +1,28 @@
+title: One Source Calling Several AI Model APIs
+id: 6c1e4950-8aad-5e8e-9d42-8dbd568a9c9e
+status: experimental
+description: |
+    One source called two or more different AI model APIs within 30 minutes. A single model API call is ordinary.
+    Several of them from one server in a short window is the failover autonomous offensive frameworks use when a
+    provider bans a key. Baseline developer machines and approved gateways before alerting.
+references:
+    - https://github.com/QwenLM/qwen-code
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: AOF
+date: 2026-11-21
+tags:
+    - attack.command-and-control
+    - attack.t1071.001
+correlation:
+    type: value_count
+    rules:
+        - 7660cead-563a-5832-b0fa-e0617a502787
+    group-by:
+        - src_ip
+    timespan: 30m
+    condition:
+        field: cs-host
+        gte: 2
+falsepositives:
+    - Developer machines and build agents allowed to use more than one model provider
+level: medium

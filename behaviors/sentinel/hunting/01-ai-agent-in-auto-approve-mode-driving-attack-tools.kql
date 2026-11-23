@@ -1,0 +1,46 @@
+// An AI agent in auto-approve mode driving attack tools
+// AOF attack detections by ThreatDefence (cross-framework behavior, first written for Cairn). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting. Test and baseline before alerting.
+// Agent CLIs run shell commands for the model, and attackers switch their approval prompts off so the agent never
+// stops to ask. The model behind them is usually DeepSeek, Qwen, GLM or Kimi; the client is whichever CLI works with it:
+//  - Qwen Code: qwen --yolo, -y or --approval-mode yolo (QwenLM/qwen-code, packages/cli/src/config/config.ts)
+//  - Kimi CLI: kimi --yolo, --yes, -y or --auto-approve (MoonshotAI/kimi-cli, src/kimi_cli/cli/__init__.py)
+//  - Claude Code pointed at another model (Cairn runs it on DeepSeek): claude --dangerously-skip-permissions
+//  - Codex: codex exec --dangerously-bypass-approvals-and-sandbox, or Cairn's -c model_provider="cairn"
+//  - Pi: pi --provider cairn ... (Cairn's third worker type)
+// The agent then runs scanners, Kerberos and SMB tools or exploit kits through its shell. In Cairn's local mode this
+// happens on the host with the user's own permissions, so a developer laptop or build server can be the attacker.
+// The flags are product options, so they are hard to hide while still using the stock CLIs.
+let Window = 30d;
+let AttackTools = dynamic(["nmap", "naabu", "masscan", "nuclei", "katana", "dalfox", "ffuf", "gobuster", "feroxbuster",
+    "dirsearch", "nikto", "sqlmap", "wpscan", "hydra", "medusa", "kerbrute", "netexec", "nxc", "crackmapexec",
+    "bloodyAD", "bloodyad", "coercer", "enum4linux-ng", "chisel", "pwncat", "pwncat-cs", "evil-winrm", "responder",
+    "cloudfox", "msfconsole", "searchsploit", "hashcat", "john", "sshpass", "ncat", "nc", "socat"]);
+let AgentParents = DeviceProcessEvents
+    | where Timestamp > ago(Window)
+    | where ProcessCommandLine contains "--dangerously-skip-permissions"
+        or ProcessCommandLine contains "--dangerously-bypass-approvals-and-sandbox"
+        or ProcessCommandLine contains "model_provider=\"cairn\"" or ProcessCommandLine contains "--provider cairn"
+        or ProcessCommandLine contains "/tmp/cairn-pi/"
+        // Qwen Code and Kimi CLI in auto-approve mode (the -y short flag only next to the CLI name)
+        or (ProcessCommandLine matches regex @'(^|[/\\\s])(qwen|kimi)(\.exe|\.cmd|\.js)?(\s|"|$)|@qwen-code/|kimi[-_]cli' and
+            ProcessCommandLine matches regex @"(\s--yolo\b|\s-y\b|\s--yes\b|\s--auto-approve\b|--approval-mode[\s=]+yolo)")
+    | extend Agent = case(ProcessCommandLine contains "qwen", "Qwen Code", ProcessCommandLine contains "kimi", "Kimi CLI",
+        ProcessCommandLine contains "claude", "Claude Code", ProcessCommandLine contains "codex", "Codex",
+        ProcessCommandLine contains "pi", "Pi", "other")
+    | project AgentTime=Timestamp, DeviceId, DeviceName, AgentPid=ProcessId, Agent, AgentAccount=AccountName,
+        CairnMarker = ProcessCommandLine contains "cairn", AgentCmd=substring(ProcessCommandLine, 0, 300);
+// Tools started anywhere below the agent: the agent runs bash, bash runs the tool, so match on the grandparent too.
+DeviceProcessEvents
+| where Timestamp > ago(Window)
+| where tolower(FileName) in (AttackTools) or ProcessCommandLine has_any ("impacket-", "ysoserial", "jwt_tool", "kerbrute",
+    "netexec", "nuclei -", "sqlmap ", "PayloadsAllTheThings", "/home/kali/pocs/")
+| join kind=inner AgentParents on DeviceId
+| where Timestamp between (AgentTime .. (AgentTime + 2h))
+| where InitiatingProcessParentId == AgentPid or InitiatingProcessId == AgentPid
+    or InitiatingProcessParentFileName in~ ("claude", "codex", "pi", "qwen", "kimi", "node", "python", "python3")
+| summarize Tools=make_set(FileName, 20), Commands=make_set(substring(ProcessCommandLine, 0, 200), 15),
+    FirstTool=min(Timestamp), LastTool=max(Timestamp), CairnMarker=max(toint(CairnMarker))
+    by DeviceName, Agent, AgentAccount, AgentCmd
+| extend Strength = iff(CairnMarker == 1, "Cairn worker command line", "AI agent in auto-approve mode running attack tools")
+| order by CairnMarker desc, array_length(Tools) desc

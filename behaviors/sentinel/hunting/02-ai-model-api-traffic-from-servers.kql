@@ -1,0 +1,41 @@
+// AI model API traffic from servers: an agentic attack tool running on your infrastructure
+// AOF attack detections by ThreatDefence (cross-framework behavior). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Microsoft Sentinel. Needs an outbound proxy that records the host and user agent. Test before alerting.
+// Every agentic attack framework needs a model, and the ones seen in real intrusions mostly use Chinese models and
+// gateways: CyberStrikeAI ships configured for Qwen on Alibaba DashScope, Huntback's CyberStrikeAI operator ran
+// DeepSeek, the Cairn panels NorForge found ran DeepSeek behind a Claude Code client, and operators also use GLM
+// (Zhipu, BigModel and Z.ai), Kimi (Moonshot), MiniMax, Doubao (Volcano Engine), SiliconFlow and OpenRouter. The consoles
+// (ARTEX, PentAGI, CyberStrikeAI) call these APIs from Go or Python, and the agent clients (Qwen Code, Kimi CLI,
+// opencode, Claude Code, Codex) call them with their own user agents. Endpoints below are taken from the provider lists
+// in Qwen Code, Kimi CLI and opencode.
+// A server, container host or build agent calling a model API it has no business calling is the lead, whatever the
+// client. Exclude your developer subnets and approved AI gateways, then look at what started the traffic.
+let Window = 14d;
+let ServerNets = dynamic([]);          // e.g. ["10.20.0.0/16"]; empty means every source
+let AllowedNets = dynamic([]);         // developer subnets and approved AI gateways
+let ChinaModels = dynamic(["api.deepseek.com", "dashscope.aliyuncs.com", "dashscope-intl.aliyuncs.com", "dashscope-us.aliyuncs.com",
+    "open.bigmodel.cn", "api.z.ai", "api.moonshot.cn", "api.moonshot.ai", "api.kimi.com", "code.kimi.com", "api.kimi.ai",
+    "api.minimax.io", "api.minimax.cn", "api.minimaxi.com", "ark.cn-beijing.volces.com", "api.siliconflow.cn", "api.siliconflow.com",
+    "api.stepfun.com", "api.stepfun.ai", "tokenhub.tencentmaas.com", "api.lkeap.cloud.tencent.com", "api.hunyuan.cloud.tencent.com",
+    "qianfan.baidubce.com", "api.xiaomimimo.com", "api-inference.modelscope.cn"]);
+let Gateways = dynamic(["openrouter.ai", "api.novita.ai", "zenmux.ai", "api.ofox.ai", "api.together.xyz", "api.groq.com", "api.tensorx.ai"]);
+let Western = dynamic(["api.openai.com", "api.anthropic.com", "generativelanguage.googleapis.com", "api.mistral.ai", "api.x.ai"]);
+let AgentUA = @"^(claude-cli/|codex_exec/|codex_cli_rs/|pi/\d|QwenCode/|KimiCLI/|opencode/)";
+CommonSecurityLog
+| where TimeGenerated > ago(Window)
+| extend Host = tolower(coalesce(DestinationHostName, extract(@"https?://([^/:]+)", 1, RequestURL)))
+| extend Provider = case(Host has_any (ChinaModels), "Chinese model API", Host has_any (Gateways), "model gateway",
+    Host has_any (Western), "Western model API", "")
+| where isnotempty(Provider)
+| where array_length(ServerNets) == 0 or ipv4_is_in_any_range(SourceIP, ServerNets)
+| where not(ipv4_is_in_any_range(SourceIP, AllowedNets))
+| extend UA = RequestClientApplication
+| extend Client = case(UA matches regex AgentUA, extract(@"^([A-Za-z]+)", 1, UA), UA startswith "Go-http-client/", "Go program (ARTEX, PentAGI, CyberStrikeAI consoles)",
+    UA startswith "python-requests/" or UA startswith "OpenAI/Python" or UA startswith "AsyncOpenAI/Python" or UA startswith "Anthropic/Python", "Python program",
+    UA startswith "OpenAI/JS" or UA startswith "node", "Node program", isempty(UA), "no user agent (TLS, not inspected)", "other")
+| summarize Requests=count(), Providers=make_set(Provider), Hosts=make_set(Host, 10), Clients=make_set(Client, 10), UAs=make_set(UA, 10),
+    FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated) by SourceIP, SourceUserName
+| extend Score = toint(set_has_element(Providers, "Chinese model API")) * 2 + toint(set_has_element(Providers, "model gateway"))
+    + toint(array_length(set_intersect(Clients, dynamic(["claude", "codex", "pi", "QwenCode", "KimiCLI", "opencode"]))) > 0)
+    + toint(array_length(Hosts) >= 2)
+| order by Score desc, Requests desc

@@ -1,0 +1,27 @@
+id: ec0f17d1-a565-55f3-acff-55eec0af736b
+name: Server resolved a canary token domain
+description: |
+  A host looked up or requested a canary-token name (canarytokens.com, canarytokens.org or canary.tools). That is the
+  callback a planted token makes when something reads it. Agents that search files and cloud logs for secrets trip
+  these tokens. A security engineer testing a token matches too.
+  AOF attack detections (cross-framework behavior): https://github.com/ThreatDefence/AOF_attack_detections
+severity: High
+requiredDataConnectors:
+  - connectorId: DNS
+    dataTypes:
+      - DnsEvents
+queryFrequency: 1h
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - CredentialAccess
+relevantTechniques:
+  - T1552
+query: |
+  let Canary = dynamic(["canarytokens.com", "canarytokens.org", "canary.tools"]);
+  DnsEvents
+  | where Name has_any (Canary)
+  | summarize Lookups=count(), Names=make_set(Name, 10) by Computer, ClientIP
+version: 1.0.0
+kind: Scheduled

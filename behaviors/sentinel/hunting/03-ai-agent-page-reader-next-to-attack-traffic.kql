@@ -1,0 +1,34 @@
+// An AI agent's page reader on your application, next to attack traffic from the same source
+// AOF attack detections by ThreatDefence (cross-framework behavior, first written for Cairn). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Microsoft Sentinel. Test and baseline before alerting.
+// Agent CLIs read pages with their own fetch tools, which send their own user agents, while the attack itself goes
+// through curl, Python and Kali tools in the agent's shell:
+//  - Qwen Code web fetch: "QwenCode/<version> (<os>; <arch>)" (packages/core/src/tools/web-fetch.ts)
+//  - Kimi CLI search: "KimiCLI/<version>" (src/kimi_cli/constant.py); its page fetch poses as Chrome 91
+//  - opencode: "opencode/<channel>/<version>/<name>" (packages/core/src/app.ts)
+//  - Claude Code WebFetch, which Cairn's workers use with DeepSeek behind it:
+//    "Claude-User (claude-code/<version>; +https://support.anthropic.com/)"
+// Ordinary users of these tools send the same strings, so a reader hit alone means little. The same address reading
+// pages with an agent and sending attack tooling or payloads to the same host is an AI agent attacking that host.
+let Window = 14d;
+let AgentReader = @"(Claude-User \(claude-code/|^QwenCode/|^KimiCLI/|^opencode/)";
+let Web = union isfuzzy=true
+    (CommonSecurityLog | where TimeGenerated > ago(Window) and isnotempty(RequestURL)
+        | project TimeGenerated, Src=SourceIP, Host=DestinationHostName, Url=RequestURL, UA=RequestClientApplication),
+    (W3CIISLog | where TimeGenerated > ago(Window)
+        | project TimeGenerated, Src=cIP, Host=csHost, Url=strcat(csUriStem, "?", csUriQuery), UA=replace_string(csUserAgent, "+", " "));
+let Readers = Web
+    | where UA matches regex AgentReader
+    | summarize ReaderRequests=count(), ReaderUA=take_any(UA), ReaderFirst=min(TimeGenerated) by Src, Host;
+Web
+| where not(UA matches regex AgentReader)
+| extend Tool = case(UA startswith "curl/", "curl", UA startswith "python-requests/" or UA startswith "Python-urllib/", "python",
+    UA has_any ("sqlmap", "Nuclei", "nuclei", "Fuzz Faster U Fool", "Nikto", "dirsearch", "WPScan", "katana", "dalfox"), "scanner",
+    UA has "HeadlessChrome", "headless browser", "")
+| extend Payload = Url matches regex @"(?i)(union(\s|\+|%20)+select|sleep\(|\.\./|%2e%2e|/etc/passwd|<script|%3cscript|\$\{|\{\{|/\.git/|/\.env)"
+| where isnotempty(Tool) or Payload
+| summarize Requests=count(), Tools=make_set(Tool, 6), PayloadHits=countif(Payload), SampleURLs=make_set(Url, 8),
+    FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated) by Src, Host
+| join kind=inner Readers on Src, Host
+| project Src, Host, ReaderUA, ReaderRequests, Requests, Tools, PayloadHits, SampleURLs, FirstSeen, LastSeen
+| order by PayloadHits desc, Requests desc

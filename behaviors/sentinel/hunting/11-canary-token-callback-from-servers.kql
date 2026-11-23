@@ -1,0 +1,31 @@
+// A server called a canary-token service: something on it read a planted token
+// AOF attack detections (cross-framework behavior). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting and Microsoft Sentinel DNS logs. Test before alerting.
+// A canary token is a DNS name, URL or credential left where an agent that searches files, environment variables and
+// cloud logs for secrets will read it. The read makes the host look up or fetch a name under the token service.
+// Thinkst Canarytokens use canarytokens.com and canarytokens.org. Thinkst Canary uses canary.tools. A hit on one of
+// your servers means a token was read there. Security staff testing a token will match too.
+
+let Window = 14d;
+let Canary = dynamic(["canarytokens.com", "canarytokens.org", "canary.tools"]);
+union isfuzzy=true
+    (DeviceNetworkEvents
+        | where Timestamp > ago(Window)
+        | where RemoteUrl has_any (Canary)
+        | project Timestamp, DeviceName, Source="DeviceNetworkEvents", Name=RemoteUrl,
+            Process=strcat(InitiatingProcessFileName, " ", substring(InitiatingProcessCommandLine, 0, 200))),
+    (DeviceEvents
+        | where Timestamp > ago(Window)
+        | where ActionType == "DnsQueryResponse"
+        | extend Name = tostring(parse_json(AdditionalFields).DnsQueryString)
+        | where Name has_any (Canary)
+        | project Timestamp, DeviceName, Source="DeviceEvents DNS", Name,
+            Process=strcat(InitiatingProcessFileName, " ", substring(InitiatingProcessCommandLine, 0, 200))),
+    (DnsEvents
+        | where TimeGenerated > ago(Window)
+        | where Name has_any (Canary)
+        | project Timestamp=TimeGenerated, DeviceName=Computer, Source="DnsEvents", Name, Process=ClientIP)
+| extend Service = extract(@"(canarytokens\.com|canarytokens\.org|canary\.tools)$", 1, tolower(Name))
+| summarize Lookups=count(), Names=make_set(Name, 10), Processes=make_set(Process, 10), FirstSeen=min(Timestamp), LastSeen=max(Timestamp)
+    by DeviceName, Service
+| order by FirstSeen desc

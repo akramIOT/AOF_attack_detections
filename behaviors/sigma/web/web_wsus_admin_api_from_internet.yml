@@ -1,0 +1,27 @@
+title: WSUS Administration or Sync API Requested
+id: 11edf1dc-e52b-55f2-9d08-db9c563701b6
+status: experimental
+description: |
+    Detects requests to the WSUS administration, reporting or server-sync web services. JPCERT/CC Case E reports attacks
+    on internet-facing WSUS servers by operators using Cairn, CyberStrikeAI and ARTEX. These services should not answer
+    the internet; client endpoints are excluded.
+references:
+    - https://www.jpcert.or.jp/at/2026/at260030.html
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.initial-access
+    - attack.t1190
+logsource:
+    category: webserver
+detection:
+    selection:
+        cs-uri-stem|contains:
+            - '/ApiRemoting30/WebService.asmx'
+            - '/ServerSyncWebService/ServerSyncWebService.asmx'
+            - '/ReportingWebService/ReportingWebService.asmx'
+    condition: selection
+falsepositives:
+    - Internal WSUS administration consoles and downstream servers reaching the log source
+level: medium

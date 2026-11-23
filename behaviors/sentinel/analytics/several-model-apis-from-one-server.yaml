@@ -1,0 +1,38 @@
+id: d1f9a625-c770-56e3-9cb7-f783d83a769d
+name: One server called several AI model APIs
+description: |
+  One source reached two or more AI model APIs inside 30 minutes. Hunt 02 covers a single model API call from a server.
+  This rule is the failover case: published reporting on autonomous offensive frameworks describes a framework trying
+  another provider when a key is banned. Exclude developer subnets in AllowedNets before you alert.
+  AOF attack detections (cross-framework behavior): https://github.com/ThreatDefence/AOF_attack_detections
+severity: Medium
+requiredDataConnectors:
+  - connectorId: Cef
+    dataTypes: []
+queryFrequency: 30m
+queryPeriod: 30m
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - CommandAndControl
+relevantTechniques:
+  - T1071.001
+query: |
+  let ServerNets = dynamic([]);
+  let AllowedNets = dynamic([]);
+  let Models = dynamic(["api.deepseek.com", "dashscope.aliyuncs.com", "dashscope-intl.aliyuncs.com", "dashscope-us.aliyuncs.com",
+      "open.bigmodel.cn", "api.z.ai", "api.moonshot.cn", "api.moonshot.ai", "api.kimi.com", "code.kimi.com", "api.kimi.ai",
+      "api.minimax.io", "api.minimax.cn", "api.minimaxi.com", "ark.cn-beijing.volces.com", "api.siliconflow.cn", "api.siliconflow.com",
+      "api.stepfun.com", "api.stepfun.ai", "tokenhub.tencentmaas.com", "api.lkeap.cloud.tencent.com", "api.hunyuan.cloud.tencent.com",
+      "qianfan.baidubce.com", "api.xiaomimimo.com", "api-inference.modelscope.cn", "openrouter.ai", "api.novita.ai", "zenmux.ai",
+      "api.ofox.ai", "api.together.xyz", "api.groq.com", "api.tensorx.ai", "api.openai.com", "api.anthropic.com",
+      "generativelanguage.googleapis.com", "api.mistral.ai", "api.x.ai"]);
+  CommonSecurityLog
+  | extend Host = tolower(coalesce(DestinationHostName, extract(@"https?://([^/:]+)", 1, RequestURL)))
+  | where Host has_any (Models)
+  | where array_length(ServerNets) == 0 or ipv4_is_in_any_range(SourceIP, ServerNets)
+  | where not(ipv4_is_in_any_range(SourceIP, AllowedNets))
+  | summarize Hosts=make_set(Host, 10), APIs=dcount(Host), Requests=count() by SourceIP, bin(TimeGenerated, 30m)
+  | where APIs >= 2
+version: 1.0.0
+kind: Scheduled

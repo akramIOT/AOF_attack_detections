@@ -1,0 +1,28 @@
+title: AI Agent Page Reader User Agent in Web Server Logs
+id: 4577e6ef-bed6-54e3-8414-5970cd3a36da
+status: experimental
+description: |
+    Detects the page readers of AI agent CLIs: Qwen Code, Kimi CLI, opencode and Claude Code (which Cairn's workers
+    run with DeepSeek behind it). Agents read target pages with these while curl, Python and Kali tools do the rest.
+    Ordinary users send the same strings, so treat a hit as context and correlate with scanning from the same address.
+references:
+    - https://github.com/oritera/Cairn
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.reconnaissance
+    - attack.t1594
+logsource:
+    category: webserver
+detection:
+    selection:
+        - cs-user-agent|contains: 'Claude-User (claude-code/'
+        - cs-user-agent|startswith:
+              - 'QwenCode/'
+              - 'KimiCLI/'
+              - 'opencode/'
+    condition: selection
+falsepositives:
+    - Developers and users of these agents reading public pages
+level: low
