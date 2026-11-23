@@ -1,0 +1,37 @@
+// Hermes consoles, Telegram control from servers, and Hermes results left on web servers
+// AOF attack detections by ThreatDefence (Hermes Agent). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting with web and proxy logs in Microsoft Sentinel. Test before alerting.
+// Every Hermes abuse case so far was controlled over Telegram (Unit 42, Carbonato) or a web console (Gambit's operator
+// console, the Hermes WebUI on 8878 Hunt.io found, the Hermes dashboard on 9119), and two were found because the agent's
+// own output was served on the web: Hermes started python3 -m http.server 8888 in the actor's home folder (Unit 42), and
+// Hunt.io's operator left a hermes-results folder of call_00_<id>.txt tool outputs in an open directory.
+//  - A server whose agent process talks to api.telegram.org is being driven from Telegram.
+//  - Requests for /hermes-results/ or call_00_*.txt, or for a home folder's .hermes, .bash_history or .env on your web
+//    servers, mean someone's agent output is being served from your estate.
+
+let Window = 30d;
+union isfuzzy=true
+    (DeviceNetworkEvents
+        | where Timestamp > ago(Window)
+        | where RemoteUrl has "api.telegram.org"
+        | where InitiatingProcessCommandLine matches regex @"hermes|/\.hermes/|run_agent\.py|gateway"
+            or InitiatingProcessFolderPath contains "/.hermes/"
+        | summarize Connections=count(), Timestamp=min(Timestamp) by DeviceName, Process=substring(InitiatingProcessCommandLine, 0, 200)
+        | project Timestamp, DeviceName, Signal="Hermes gateway talking to Telegram", Detail=strcat(Process, " x", Connections)),
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where ProcessCommandLine matches regex @"python3?\s+-m\s+http\.server"
+            and (InitiatingProcessCommandLine matches regex @"hermes|/\.hermes/" or ProcessCommandLine contains "8888")
+        | project Timestamp, DeviceName, Signal="File server started by or next to Hermes", Detail=strcat(ProcessCommandLine, " in ", InitiatingProcessCommandLine)),
+    (DeviceNetworkEvents
+        | where Timestamp > ago(Window)
+        | where ActionType == "ListeningConnectionCreated" and LocalPort in (8878, 9119)
+            and InitiatingProcessCommandLine matches regex @"hermes|/\.hermes/"
+        | project Timestamp, DeviceName, Signal="Hermes web UI or dashboard listening", Detail=strcat(LocalIP, ":", LocalPort, " ", InitiatingProcessCommandLine)),
+    (union isfuzzy=true
+        (W3CIISLog | where TimeGenerated > ago(Window) | project TimeGenerated, Src=cIP, Host=csHost, Url=csUriStem),
+        (CommonSecurityLog | where TimeGenerated > ago(Window) | project TimeGenerated, Src=SourceIP, Host=DestinationHostName, Url=RequestURL)
+        | where Url contains "/hermes-results/" or Url matches regex @"call_00_[A-Za-z0-9]{8,}\.txt" or Url contains "/.hermes/"
+        | summarize Requests=count(), Urls=make_set(Url, 10), Timestamp=min(TimeGenerated) by Src, Host
+        | project Timestamp, DeviceName=Host, Signal="Hermes output requested from a web server", Detail=strcat(Src, " ", tostring(Urls)))
+| order by Timestamp desc
