@@ -1,0 +1,3 @@
+# ARTEX Agentic Attack Framework User Agent in Proxy Logs
+# Sigma id 22f584db-3e7c-523b-ae39-7d0c793a8603, pipeline splunk_windows
+"c-useragent" IN ("*artex-readonly/*", "*artex-pentest/*", "*artex-audit/*", "*artex-verify/*", "*artex-spawn/*", "*ARTEX-worker/*", "*artex-enrich/*", "*artex-i21861-canary*", "*ARTeX-authorized-pentest*", "*Mozilla/5.0 ARTeX*", "*Mozilla/5.0 (ARTEX)*", "*ArtExVerify/*", "*ArtEx/1.0*", "*scopeweaver*", "*spa-api-recon*")

@@ -1,0 +1,3 @@
+# DNS Query for Reported ARTEX Infrastructure
+# Sigma id 7229e832-84df-55f9-b5bc-3d9591d5abbb, pipeline splunk_windows
+QueryName IN ("nginxmysql.com", "sqlserver-sqlite.com", "www.ddduuuppp.com") OR QueryName IN ("*artex.lol", "*artex.tokena2b.top", "*artex.ok7777.eu.cc", "*artex.noog2infra.site")

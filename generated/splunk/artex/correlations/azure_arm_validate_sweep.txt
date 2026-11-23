@@ -1,0 +1,8 @@
+# Azure Resource Manager Validate Sweep
+# Sigma id 0a62aff2-8b75-5648-88d8-3778b26c17c7, pipeline splunk_windows
+operationName="*/deployments/validate/action"
+
+| bin _time span=1m
+| stats count as event_count by _time caller
+
+| search event_count >= 5

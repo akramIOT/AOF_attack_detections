@@ -1,0 +1,8 @@
+# AWS Access Denied Sweep Across Many APIs
+# Sigma id 8826ae5f-27a0-5062-9cd5-4b14e969fa2c, pipeline splunk_windows
+errorCode IN ("AccessDenied", "AccessDeniedException", "UnauthorizedOperation", "Client.UnauthorizedOperation")
+
+| bin _time span=10m
+| stats dc(eventName) as value_count by _time userIdentity.arn
+
+| search value_count >= 15

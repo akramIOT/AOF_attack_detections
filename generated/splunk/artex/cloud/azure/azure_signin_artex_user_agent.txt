@@ -1,0 +1,3 @@
+# ARTEX User Agent in Entra ID Sign-In Logs
+# Sigma id c7ebdb95-cf55-52ff-837b-1e007b0c1d38, pipeline splunk_windows
+userAgent IN ("*artex-readonly/*", "*artex-pentest/*", "*artex-audit/*", "*artex-verify/*", "*artex-spawn/*", "*ARTEX-worker/*", "*artex-enrich/*", "*artex-i21861-canary*", "*ARTeX-authorized-pentest*", "*Mozilla/5.0 ARTeX*", "*Mozilla/5.0 (ARTEX)*", "*ArtExVerify/*", "*ArtEx/1.0*", "*scopeweaver*", "*spa-api-recon*")

@@ -1,0 +1,3 @@
+# ARTEX User Agent in AWS CloudTrail
+# Sigma id ea96b8da-687c-502e-b65b-938836e55638, pipeline splunk_windows
+userAgent IN ("*artex-readonly/*", "*artex-pentest/*", "*artex-audit/*", "*artex-verify/*", "*artex-spawn/*", "*ARTEX-worker/*", "*artex-enrich/*", "*artex-i21861-canary*", "*ARTeX-authorized-pentest*", "*Mozilla/5.0 ARTeX*", "*Mozilla/5.0 (ARTEX)*", "*ArtExVerify/*", "*ArtEx/1.0*", "*scopeweaver*", "*spa-api-recon*")

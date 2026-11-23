@@ -1,0 +1,6 @@
+# Strix AI Pentest Agent CLI or Sandbox
+# Sigma id f15a6887-4f5c-590b-bfe3-829a57781f3b, pipeline splunk_windows
+
+| rex field=CommandLine "(?<CommandLineMatch>(^|[/\\\\\\s])strix(\\.exe)?\\s.*\\s(--target|-t|--target-list|--scan-mode|--resume)[\\s=])"
+| eval CommandLineCondition=if(isnotnull(CommandLineMatch), "true", "false")
+| search CommandLineCondition="true" OR CommandLine IN ("*strix-agent*", "*usestrix/strix-sandbox*") OR (CommandLine="*caido-cli*" CommandLine="*--allow-guests*")

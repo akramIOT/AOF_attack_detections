@@ -1,0 +1,3 @@
+# DNS Query to Request Collection or DNS Callback Services
+# Sigma id 68a5326b-3c56-5371-bfd7-2cd1bda49314, pipeline splunk_windows
+QueryName IN ("*webhook.site", "*.dnslog.cn", "*.interact.sh", "*.oast.fun", "*.requestcatcher.com", "*.pipedream.net")

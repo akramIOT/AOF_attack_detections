@@ -1,0 +1,3 @@
+# JSP Web Shell Names Seen in ARTEX Intrusions
+# Sigma id da2a1f27-1099-5c19-ab6f-820c9b3b1e6a, pipeline splunk_windows
+TargetFilename IN ("*/cl1217.jsp", "*/f1219a.jsp", "*/z1219.jsp", "*\\cl1217.jsp", "*\\f1219a.jsp", "*\\z1219.jsp")

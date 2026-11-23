@@ -1,0 +1,6 @@
+# AI Agent CLI in Auto-Approve Mode Starts an Attack Tool
+# Sigma id 88fc59b1-a5c1-5229-9753-e11f9a5c4fc0, pipeline splunk_windows
+
+| rex field=ParentCommandLine "(?<ParentCommandLineMatch>(\\s--yolo\\b|\\s-y\\b|\\s--yes\\b|\\s--auto-approve\\b|--approval-mode[\\s=]+yolo))"
+| eval ParentCommandLineCondition=if(isnotnull(ParentCommandLineMatch), "true", "false")
+| search Image IN ("*/nmap", "*/naabu", "*/nuclei", "*/katana", "*/dalfox", "*/ffuf", "*/sqlmap", "*/nikto", "*/kerbrute", "*/netexec", "*/nxc", "*/bloodyAD", "*/coercer", "*/chisel", "*/cloudfox") ParentCommandLine IN ("*--dangerously-skip-permissions*", "*--dangerously-bypass-approvals-and-sandbox*", "*--provider cairn*") OR (ParentCommandLine IN ("*qwen*", "*kimi*") ParentCommandLineCondition="true")

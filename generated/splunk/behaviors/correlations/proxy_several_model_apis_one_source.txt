@@ -1,0 +1,8 @@
+# One Source Calling Several AI Model APIs
+# Sigma id 6c1e4950-8aad-5e8e-9d42-8dbd568a9c9e, pipeline splunk_windows
+"cs-host" IN ("*api.deepseek.com", "*dashscope.aliyuncs.com", "*dashscope-intl.aliyuncs.com", "*dashscope-us.aliyuncs.com", "*open.bigmodel.cn", "*api.z.ai", "*api.moonshot.cn", "*api.moonshot.ai", "*api.kimi.com", "*code.kimi.com", "*api.kimi.ai", "*api.minimax.io", "*api.minimax.cn", "*api.minimaxi.com", "*ark.cn-beijing.volces.com", "*api.siliconflow.cn", "*api.siliconflow.com", "*api.stepfun.com", "*api.stepfun.ai", "*tokenhub.tencentmaas.com", "*api.lkeap.cloud.tencent.com", "*api.hunyuan.cloud.tencent.com", "*qianfan.baidubce.com", "*api.xiaomimimo.com", "*api-inference.modelscope.cn", "*openrouter.ai", "*api.novita.ai", "*zenmux.ai", "*api.ofox.ai", "*api.together.xyz", "*api.groq.com", "*api.tensorx.ai", "*api.openai.com", "*api.anthropic.com", "*generativelanguage.googleapis.com", "*api.mistral.ai", "*api.x.ai")
+
+| bin _time span=30m
+| stats dc("cs-host") as value_count by _time src_ip
+
+| search value_count >= 2

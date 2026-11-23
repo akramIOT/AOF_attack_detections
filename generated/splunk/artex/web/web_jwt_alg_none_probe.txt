@@ -1,0 +1,3 @@
+# Unsigned JWT With alg none Sent to a Web Application
+# Sigma id 78ba682f-dd9b-592c-a387-3bd2c619e06b, pipeline splunk_windows
+"cs-uri-query" IN ("*eyJhbGciOiJub25lIn0.*", "*eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.*", "*eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.*")

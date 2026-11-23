@@ -1,0 +1,8 @@
+# Burst of EC2 DryRun Calls From One Identity
+# Sigma id 0786eda9-e147-504c-8520-874a7562ee4b, pipeline splunk_windows
+eventSource="ec2.amazonaws.com" errorCode="Client.DryRunOperation"
+
+| bin _time span=5m
+| stats count as event_count by _time userIdentity.arn
+
+| search event_count >= 10

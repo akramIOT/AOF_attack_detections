@@ -1,0 +1,3 @@
+# HexStrike User Agent or XSS Probe in Web Logs
+# Sigma id 58bf6da7-134f-5235-9cf6-79feb0fc62c7, pipeline splunk_windows
+"cs-user-agent" IN ("*HexStrike-HTTP-Framework/*", "*HexStrike-BrowserAgent/*", "*Mozilla/5.0 (Compatible Exploit)*") OR "cs-uri-query"="*hexstrikeXSSTest123*"

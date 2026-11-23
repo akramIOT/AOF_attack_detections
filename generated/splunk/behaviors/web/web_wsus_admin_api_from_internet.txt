@@ -1,0 +1,3 @@
+# WSUS Administration or Sync API Requested
+# Sigma id 11edf1dc-e52b-55f2-9d08-db9c563701b6, pipeline splunk_windows
+"cs-uri-stem" IN ("*/ApiRemoting30/WebService.asmx*", "*/ServerSyncWebService/ServerSyncWebService.asmx*", "*/ReportingWebService/ReportingWebService.asmx*")

@@ -1,0 +1,8 @@
+# Remote tasklist Fan-Out From One Host
+# Sigma id c53722c6-23d3-5460-a002-2d1b034e2809, pipeline splunk_windows
+Image="*\\tasklist.exe" OR OriginalFileName="tasklist.exe" CommandLine="* -s *" OR CommandLine="* /s *" OR CommandLine="* –s *" OR CommandLine="* —s *" OR CommandLine="* ―s *"
+
+| bin _time span=10m
+| stats count as event_count by _time Computer
+
+| search event_count >= 10
