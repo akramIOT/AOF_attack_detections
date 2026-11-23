@@ -1,0 +1,33 @@
+title: CyberStrikeAI Implant Linux Persistence or curl Beacon
+id: 292a54b3-11a5-5766-a339-5e3c2d90988b
+status: experimental
+description: |
+    Detects the CyberStrikeAI implant's Linux cron persistence, (crontab -l; echo '@reboot <implant> &') | sort -u | crontab -,
+    and its curl_beacon one-liner, a bash loop that POSTs to /check_in with an X-Implant-Token header every 5 seconds.
+references:
+    - https://github.com/AIPentest/CyberStrikeAI
+    - https://securelist.com/cyberstrikeai-attacks/121715/
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.persistence
+    - attack.t1053.003
+    - attack.command-and-control
+    - attack.t1071.001
+logsource:
+    category: process_creation
+    product: linux
+detection:
+    selection_cron:
+        CommandLine|contains|all:
+            - '@reboot'
+            - 'sort -u | crontab -'
+    selection_beacon:
+        CommandLine|contains: 'X-Implant-Token'
+    selection_bashrc:
+        CommandLine|contains: '&>/dev/null &) # cs'
+    condition: 1 of selection_*
+falsepositives:
+    - Administrators adding @reboot jobs the same way (cron selection only)
+level: high

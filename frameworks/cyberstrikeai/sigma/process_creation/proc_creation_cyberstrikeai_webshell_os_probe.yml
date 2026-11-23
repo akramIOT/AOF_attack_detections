@@ -1,0 +1,26 @@
+title: CyberStrikeAI Webshell OS Probe Command
+id: 76d2ff37-110c-5b15-99ca-adbeab446f2a
+status: experimental
+description: |
+    Detects the command CyberStrikeAI's webshell manager runs on every new webshell, "echo :OSPROBE_%OS%:END", which
+    shows up as a shell started by the web server process.
+references:
+    - https://github.com/AIPentest/CyberStrikeAI
+    - https://www.elastic.co/security-labs/threat-command/agentic-offensive-frameworks-detection-artex
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.discovery
+    - attack.t1082
+    - attack.persistence
+    - attack.t1505.003
+logsource:
+    category: process_creation
+detection:
+    selection:
+        CommandLine|contains: ':OSPROBE_'
+    condition: selection
+falsepositives:
+    - Authorized tests with CyberStrikeAI
+level: high

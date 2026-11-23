@@ -1,0 +1,42 @@
+// CyberStrikeAI implant persistence and the file names seen in real attacks
+// AOF attack detections by ThreatDefence (CyberStrikeAI). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting. Test before alerting.
+// From the CyberStrikeAI implant template (internal/c2/payload_templates/beacon.go.tmpl:1262-1340). When the operator asks
+// the implant to persist, it uses fixed names on every operating system:
+//  - Windows: reg add HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v SystemUpdate, then
+//    schtasks /create /tn "SystemUpdate" /tr <implant> /sc onlogon /rl highest /f, both through cmd /c.
+//  - Linux: (crontab -l 2>/dev/null; echo '@reboot <implant> &') | sort -u | crontab -, then a line
+//    "(nohup <implant> &>/dev/null &) # cs" appended to ~/.bashrc.
+//  - macOS: ~/Library/LaunchAgents/com.apple.systemupdate.plist with RunAtLoad and KeepAlive.
+// Kaspersky saw the SystemUpdate task (as SYSTEM, also created remotely with schtasks /s) and Run value in attacks on
+// education organizations, with the beacon named svchosts.exe in C:\Windows\Temp, svcmon32.exe next to it and
+// mimikatz renamed wdiag2.exe. The names are code defaults; the operator can change the file names.
+
+let Window = 30d;
+union isfuzzy=true
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where (ProcessCommandLine contains @"CurrentVersion\Run" and ProcessCommandLine matches regex @'(?i)/v\s+"?SystemUpdate\b')
+            or (ProcessCommandLine has "schtasks" and ProcessCommandLine matches regex @'(?i)/tn\s+"?\\?SystemUpdate\b')
+            or (ProcessCommandLine contains "@reboot" and ProcessCommandLine contains "sort -u | crontab -")
+            or ProcessCommandLine contains "&>/dev/null &) # cs"
+        | project Timestamp, DeviceName, Signal="CyberStrikeAI persistence command", Detail=substring(ProcessCommandLine, 0, 300),
+            Parent=strcat(InitiatingProcessFileName, " ", InitiatingProcessFolderPath)),
+    (DeviceRegistryEvents
+        | where Timestamp > ago(Window)
+        | where RegistryKey endswith @"\CurrentVersion\Run" and RegistryValueName =~ "SystemUpdate"
+        | project Timestamp, DeviceName, Signal="Run value SystemUpdate", Detail=RegistryValueData,
+            Parent=strcat(InitiatingProcessFileName, " ", InitiatingProcessFolderPath)),
+    (DeviceEvents
+        | where Timestamp > ago(Window)
+        | where ActionType == "ScheduledTaskCreated" and tostring(parse_json(AdditionalFields).TaskName) =~ @"\SystemUpdate"
+        | project Timestamp, DeviceName, Signal="Scheduled task SystemUpdate created", Detail=tostring(parse_json(AdditionalFields).TaskContent),
+            Parent=InitiatingProcessFileName),
+    (DeviceFileEvents
+        | where Timestamp > ago(Window)
+        | where FileName =~ "com.apple.systemupdate.plist" and FolderPath has "/Library/LaunchAgents/"
+            or (FileName =~ ".bashrc" and ActionType in ("FileModified", "FileCreated") and InitiatingProcessFileName !in~ ("bash", "zsh", "sh", "vim", "vi", "nano", "emacs", "code", "dpkg", "rpm", "apt", "yum", "dnf"))
+            or (FileName in~ ("svchosts.exe", "svcmon32.exe", "wdiag2.exe") and FolderPath has_any (@"\Windows\Temp\", @"\ProgramData\"))
+        | project Timestamp, DeviceName, Signal=strcat("File ", FileName), Detail=FolderPath,
+            Parent=strcat(InitiatingProcessFileName, " ", InitiatingProcessCommandLine))
+| order by Timestamp desc

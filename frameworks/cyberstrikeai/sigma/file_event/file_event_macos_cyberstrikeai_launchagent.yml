@@ -1,0 +1,24 @@
+title: CyberStrikeAI Implant LaunchAgent com.apple.systemupdate
+id: 2ba060cd-8351-51cb-82e8-1adef3c38d02
+status: experimental
+description: |
+    Detects the LaunchAgent the CyberStrikeAI implant writes on macOS, ~/Library/LaunchAgents/com.apple.systemupdate.plist,
+    with RunAtLoad and KeepAlive. Apple does not ship a per-user agent with this label.
+references:
+    - https://github.com/AIPentest/CyberStrikeAI
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.persistence
+    - attack.t1543.001
+logsource:
+    category: file_event
+    product: macos
+detection:
+    selection:
+        TargetFilename|endswith: '/Library/LaunchAgents/com.apple.systemupdate.plist'
+    condition: selection
+falsepositives:
+    - Unknown
+level: high

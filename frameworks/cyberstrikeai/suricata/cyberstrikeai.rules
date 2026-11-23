@@ -1,0 +1,23 @@
+# AOF attack detections by ThreatDefence: CyberStrikeAI
+# https://github.com/ThreatDefence/AOF_attack_detections
+# Suricata 7 and 8. SID range 9730001-9730499. HTTP rules need cleartext HTTP or decrypted traffic.
+# Implants talking to an http_beacon listener, the curl one-liner and webshells over plain HTTP need no decryption;
+# https_beacon listeners and the console use self-signed TLS, which the certificate rule reads without decryption.
+
+# --- The webshell manager talking to a webshell on your server ---
+alert http any any -> $HTTP_SERVERS any (msg:"TD CyberStrikeAI webshell manager user agent"; flow:established,to_server; http.user_agent; content:"CyberStrikeAI-WebShell/"; fast_pattern; classtype:web-application-attack; sid:9730001; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family CyberStrikeAI;)
+alert http any any -> $HTTP_SERVERS any (msg:"TD CyberStrikeAI webshell OS probe in URI"; flow:established,to_server; http.uri; content:"OSPROBE_"; fast_pattern; nocase; classtype:web-application-attack; sid:9730002; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family CyberStrikeAI;)
+alert http any any -> $HTTP_SERVERS any (msg:"TD CyberStrikeAI webshell OS probe in request body"; flow:established,to_server; http.method; content:"POST"; http.request_body; content:"OSPROBE_"; fast_pattern; classtype:web-application-attack; sid:9730003; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family CyberStrikeAI;)
+alert http $HTTP_SERVERS any -> any any (msg:"TD CyberStrikeAI webshell OS probe answered by a Windows server"; flow:established,to_client; http.response_body; content:":OSPROBE_Windows_NT:END"; fast_pattern; classtype:successful-admin; sid:9730004; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family CyberStrikeAI;)
+
+# --- The console's own traffic ---
+alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"TD CyberStrikeAI console user agent"; flow:established,to_server; http.user_agent; content:"CyberStrikeAI/"; startswith; fast_pattern; classtype:policy-violation; sid:9730005; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family CyberStrikeAI;)
+alert tls any any -> any any (msg:"TD CyberStrikeAI console self-signed certificate"; flow:established,to_client; tls.cert_subject; content:"CN=CyberStrikeAI"; fast_pattern; tls.cert_issuer; content:"CN=CyberStrikeAI"; classtype:policy-violation; sid:9730006; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family CyberStrikeAI;)
+
+# --- Implant check-ins ---
+# Go sets TCP_NODELAY, so the TCP implant sends CSB1 as a 4-byte segment of its own before its first length frame.
+alert http $HOME_NET any -> any any (msg:"TD CyberStrikeAI implant token header"; flow:established,to_server; http.header_names; content:"|0d 0a|X-Implant-Token|0d 0a|"; fast_pattern; classtype:trojan-activity; sid:9730010; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family CyberStrikeAI;)
+alert http $HOME_NET any -> any any (msg:"TD CyberStrikeAI implant session header with check-in"; flow:established,to_server; http.method; content:"POST"; http.header_names; content:"|0d 0a|X-Session-Token|0d 0a|"; fast_pattern; http.uri; content:"/check_in"; endswith; classtype:trojan-activity; sid:9730011; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family CyberStrikeAI;)
+alert http $HOME_NET any -> any any (msg:"TD CyberStrikeAI implant task poll"; flow:established,to_server; http.method; content:"GET"; http.uri; content:"/tasks?session_id="; fast_pattern; http.header_names; content:"|0d 0a|X-Session-Token|0d 0a|"; classtype:trojan-activity; sid:9730012; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family CyberStrikeAI;)
+alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"TD CyberStrikeAI implant default user agent (truncated Chrome string)"; flow:established,to_server; http.user_agent; content:"Mozilla/5.0 (Windows NT 10.0|3b| Win64|3b| x64) AppleWebKit/537.36"; startswith; endswith; fast_pattern; classtype:trojan-activity; sid:9730013; rev:1; metadata:created_at 2026_11_21, confidence Medium, malware_family CyberStrikeAI;)
+alert tcp $HOME_NET any -> $EXTERNAL_NET any (msg:"TD CyberStrikeAI TCP implant magic CSB1"; flow:established,to_server; dsize:4; content:"CSB1"; depth:4; classtype:trojan-activity; sid:9730014; rev:1; metadata:created_at 2026_11_21, confidence Medium, malware_family CyberStrikeAI;)

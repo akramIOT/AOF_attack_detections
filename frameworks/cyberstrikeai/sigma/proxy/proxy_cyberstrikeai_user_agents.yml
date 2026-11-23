@@ -1,0 +1,32 @@
+title: CyberStrikeAI User Agents or Implant Check-in in Proxy Logs
+id: f8900a2b-5be3-5f5b-b701-c0f420ecef95
+status: experimental
+description: |
+    Detects CyberStrikeAI traffic leaving your network: the console's own user agents (CyberStrikeAI/<version> to
+    internet search APIs and chat bots, CyberStrikeAI-WebShell/ to webshells) and the implant's default user agent, a
+    Chrome string cut short after AppleWebKit/537.36 that no browser sends, matched exactly.
+references:
+    - https://github.com/AIPentest/CyberStrikeAI
+    - https://www.elastic.co/security-labs/threat-command/agentic-offensive-frameworks-detection-artex
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.command-and-control
+    - attack.t1071.001
+logsource:
+    category: proxy
+detection:
+    selection_console:
+        c-useragent|startswith:
+            - 'CyberStrikeAI/'
+            - 'CyberStrikeAI-Docker-build'
+    selection_webshell:
+        c-useragent|contains: 'CyberStrikeAI-WebShell/'
+    selection_implant:
+        c-useragent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    condition: 1 of selection_*
+falsepositives:
+    - Authorized tests with CyberStrikeAI
+    - Scripts that copy the same truncated user agent (implant selection only)
+level: high

@@ -1,0 +1,40 @@
+id: 89f1eee2-554b-5edc-a383-2ea50cc40b61
+name: CyberStrikeAI implant persistence
+description: |
+  A host created the persistence the CyberStrikeAI implant uses: a Run value or scheduled task named SystemUpdate
+  (schtasks /sc onlogon /rl highest), an @reboot crontab entry piped through sort -u, a .bashrc line ending in "# cs",
+  or a com.apple.systemupdate LaunchAgent. Kaspersky saw the SystemUpdate task and Run value in real attacks.
+  AOF attack detections by ThreatDefence: https://github.com/ThreatDefence/AOF_attack_detections
+severity: High
+requiredDataConnectors:
+  - connectorId: MicrosoftThreatProtection
+    dataTypes: []
+queryFrequency: 1h
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - Persistence
+relevantTechniques:
+  - T1547.001
+  - T1053.005
+  - T1053.003
+  - T1546.004
+  - T1543.001
+query: |
+  union isfuzzy=true
+      (DeviceProcessEvents
+          | where (ProcessCommandLine contains @"CurrentVersion\Run" and ProcessCommandLine matches regex @'(?i)/v\s+"?SystemUpdate\b')
+              or (ProcessCommandLine has "schtasks" and ProcessCommandLine matches regex @'(?i)/tn\s+"?\\?SystemUpdate\b')
+              or (ProcessCommandLine contains "@reboot" and ProcessCommandLine contains "sort -u | crontab -")
+              or ProcessCommandLine contains "&>/dev/null &) # cs"
+          | project TimeGenerated, DeviceName, AccountName, Detail=ProcessCommandLine),
+      (DeviceRegistryEvents
+          | where RegistryKey endswith @"\CurrentVersion\Run" and RegistryValueName =~ "SystemUpdate"
+          | project TimeGenerated, DeviceName, AccountName=InitiatingProcessAccountName, Detail=RegistryValueData),
+      (DeviceFileEvents
+          | where FileName =~ "com.apple.systemupdate.plist" and FolderPath has "/Library/LaunchAgents/"
+          | project TimeGenerated, DeviceName, AccountName=InitiatingProcessAccountName, Detail=FolderPath)
+  | summarize Events=count(), FirstSeen=min(TimeGenerated), Details=make_set(substring(Detail, 0, 300), 10) by DeviceName, AccountName
+version: 1.0.0
+kind: Scheduled

@@ -1,0 +1,43 @@
+// CyberStrikeAI implant check-ins: five seconds, no jitter, fixed headers
+// AOF attack detections by ThreatDefence (CyberStrikeAI). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting with proxy logs in Microsoft Sentinel. Test and baseline before alerting.
+// From the CyberStrikeAI source code (internal/c2). The implant is a Go binary the console builds for each listener:
+//  - HTTP and HTTPS implants POST to /check_in, then GET /tasks?session_id=<id>, and send results to /result. Every
+//    request has X-Implant-Token (fixed per listener) and X-Session-Token headers and, by default, the user agent
+//    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", a Chrome string cut short that no browser sends.
+//  - The default sleep is 5 seconds with 0 percent jitter (internal/c2/types.go:165-169), which Elastic also notes.
+//  - The curl_beacon one-liner is a bash loop: curl -fsSk -H "X-Implant-Token: ..." POST $URL/check_in, sleep 5.
+//  - The TCP implant opens with the 4 bytes CSB1 and has the same timing.
+// Paths, sleep and user agent are configuration; the headers, the CSB1 magic and the loop shape need a code change.
+// The regular-interval branch needs tuning: software updaters and monitoring agents also poll on a fixed timer.
+
+let Window = 3d;
+let ImplantUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+union isfuzzy=true
+    (CommonSecurityLog
+        | where TimeGenerated > ago(Window)
+        | where RequestClientApplication == ImplantUA
+            or RequestURL contains "/tasks?session_id=" or (RequestURL endswith "/check_in" and RequestMethod == "POST")
+        | summarize Requests=count(), URLs=make_set(RequestURL, 5), UAs=make_set(RequestClientApplication, 3), Timestamp=min(TimeGenerated)
+            by Src=SourceIP, Dest=coalesce(DestinationHostName, DestinationIP)
+        | project Timestamp, Device=Src, Signal="CyberStrikeAI implant paths or user agent through the proxy",
+            Detail=strcat(Dest, " ", tostring(URLs), " ", tostring(UAs), " x", Requests)),
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where ProcessCommandLine contains "X-Implant-Token" or (ProcessCommandLine contains "od -An -N32 -tx1 /dev/urandom" and ProcessCommandLine contains "check_in")
+        | project Timestamp, Device=DeviceName, Signal="CyberStrikeAI curl_beacon one-liner", Detail=substring(ProcessCommandLine, 0, 300)),
+    (DeviceNetworkEvents
+        | where Timestamp > ago(Window)
+        | where ActionType == "ConnectionSuccess" and RemoteIPType == "Public"
+        | where InitiatingProcessFileName !in~ ("svchost.exe", "MsMpEng.exe", "MsSense.exe", "SenseNdr.exe", "chrome.exe", "msedge.exe", "firefox.exe", "Teams.exe", "OneDrive.exe")
+        | project Timestamp, DeviceName, RemoteIP, RemotePort, InitiatingProcessFileName, InitiatingProcessFolderPath
+        | sort by DeviceName asc, InitiatingProcessFileName asc, RemoteIP asc, Timestamp asc
+        | extend Gap = datetime_diff("millisecond", Timestamp, prev(Timestamp)) / 1000.0
+        | where DeviceName == prev(DeviceName) and InitiatingProcessFileName == prev(InitiatingProcessFileName) and RemoteIP == prev(RemoteIP)
+        | summarize Connections=count(), MeanGap=avg(Gap), StdGap=stdev(Gap), Timestamp=min(Timestamp), Ports=make_set(RemotePort, 5),
+            Path=any(InitiatingProcessFolderPath) by DeviceName, InitiatingProcessFileName, RemoteIP
+        // A new TCP connection every 4 to 7 seconds with almost no spread, for at least 10 minutes
+        | where Connections >= 120 and MeanGap between (4.0 .. 7.0) and StdGap < 1.0
+        | project Timestamp, Device=DeviceName, Signal="Connection every ~5 seconds without jitter",
+            Detail=strcat(InitiatingProcessFileName, " (", Path, ") -> ", RemoteIP, " ", tostring(Ports), " mean ", round(MeanGap, 2), "s sd ", round(StdGap, 2), "s x", Connections))
+| order by Timestamp desc

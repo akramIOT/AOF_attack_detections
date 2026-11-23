@@ -1,0 +1,36 @@
+id: 2a6b2b06-1887-55c5-9950-9ca4397e33fb
+name: CyberStrikeAI webshell manager or OS probe
+description: |
+  A web or proxy request carried a user agent hard-coded in CyberStrikeAI (CyberStrikeAI-WebShell/1.0 from its webshell
+  manager, or CyberStrikeAI/<version> from the console), or a process ran its webshell OS probe "echo :OSPROBE_%OS%:END".
+  The probe runs as a child of the web server once a webshell is in place, so treat a hit as a compromised server.
+  AOF attack detections by ThreatDefence: https://github.com/ThreatDefence/AOF_attack_detections
+severity: High
+requiredDataConnectors:
+  - connectorId: CefAma
+    dataTypes: []
+  - connectorId: AzureMonitor(IIS)
+    dataTypes: []
+  - connectorId: MicrosoftThreatProtection
+    dataTypes: []
+queryFrequency: 1h
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - Persistence
+  - Execution
+relevantTechniques:
+  - T1505.003
+  - T1059
+query: |
+  union isfuzzy=true
+      (CommonSecurityLog | where RequestClientApplication has "CyberStrikeAI" or RequestURL contains "OSPROBE_"
+          | project TimeGenerated, Host=DestinationHostName, Src=SourceIP, Detail=strcat(RequestClientApplication, " ", RequestURL)),
+      (W3CIISLog | extend UA=replace_string(csUserAgent, "+", " ") | where UA has "CyberStrikeAI" or csUriQuery contains "OSPROBE_"
+          | project TimeGenerated, Host=sComputerName, Src=cIP, Detail=strcat(UA, " ", csUriStem)),
+      (DeviceProcessEvents | where ProcessCommandLine contains "OSPROBE_"
+          | project TimeGenerated, Host=DeviceName, Src="", Detail=strcat(InitiatingProcessFileName, " -> ", ProcessCommandLine))
+  | summarize Events=count(), FirstSeen=min(TimeGenerated), Samples=make_set(Detail, 10) by Host, Src
+version: 1.0.0
+kind: Scheduled

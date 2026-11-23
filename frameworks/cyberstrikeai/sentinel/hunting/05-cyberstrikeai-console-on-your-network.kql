@@ -1,0 +1,42 @@
+// A CyberStrikeAI console on a host you monitor, or behind your proxy
+// AOF attack detections by ThreatDefence (CyberStrikeAI). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting with proxy logs in Microsoft Sentinel. Test before alerting.
+// From the CyberStrikeAI source code. The console is one Go binary, cyberstrike-ai (run.sh:93), that:
+//  - listens on 0.0.0.0:8080 with a self-signed certificate CN=CyberStrikeAI made at every start (config.example.yaml,
+//    internal/app/main_server_tls.go:114), and starts C2 listeners on ports the operator picks;
+//  - keeps everything in data/conversations.db and data/knowledge.db, implants in tmp/c2/payloads and logs in log/;
+//  - builds implants by running "go build -ldflags -s -w -buildid= -trimpath" in tmp/c2/payloads/build-<8 hex>;
+//  - calls FOFA, ZoomEye, Quake and Shodan with the user agent CyberStrikeAI/1.7.4, and chat platforms (Telegram, Slack,
+//    Discord, DingTalk, Lark, WeCom, QQ, WeChat iLink with CyberStrikeAI/1.0) when bots are configured.
+// Approval of tool calls (hitl.default_mode) is off by default. Huntback found a workspace exposed by a file server on
+// port 8010 that served /CyberStrikeAI/data/conversations.db, the full record of an operator's session.
+
+let Window = 30d;
+union isfuzzy=true
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where FileName in~ ("cyberstrike-ai", "cyberstrike-ai.exe")
+            or (FileName in~ ("go", "go.exe") and ProcessCommandLine has "build" and InitiatingProcessFileName in~ ("cyberstrike-ai", "cyberstrike-ai.exe"))
+            or InitiatingProcessFileName in~ ("cyberstrike-ai", "cyberstrike-ai.exe")
+        | summarize Events=count(), Children=make_set(FileName, 30), Commands=make_set(substring(ProcessCommandLine, 0, 200), 10), Timestamp=min(Timestamp)
+            by DeviceName, Parent=InitiatingProcessFileName
+        | project Timestamp, Device=DeviceName, Signal="CyberStrikeAI console or implant build", Detail=strcat(tostring(Children), " ", tostring(Commands)), Parent),
+    (DeviceFileEvents
+        | where Timestamp > ago(Window)
+        | where FolderPath matches regex @"[/\\]tmp[/\\]c2[/\\]payloads[/\\]"
+            or (FileName startswith "beacon_" and FileName matches regex @"_p_[0-9a-f]{14}")
+            or (FileName in~ ("conversations.db", "knowledge.db") and InitiatingProcessFileName in~ ("cyberstrike-ai", "cyberstrike-ai.exe"))
+        | project Timestamp, Device=DeviceName, Signal="CyberStrikeAI files", Detail=FolderPath, Parent=InitiatingProcessFileName),
+    (DeviceNetworkEvents
+        | where Timestamp > ago(Window)
+        | where ActionType == "ListeningConnectionCreated" and InitiatingProcessFileName in~ ("cyberstrike-ai", "cyberstrike-ai.exe")
+        | summarize Ports=make_set(LocalPort, 20), Timestamp=min(Timestamp) by DeviceName
+        | project Timestamp, Device=DeviceName, Signal="CyberStrikeAI listeners (console and C2)", Detail=tostring(Ports), Parent="cyberstrike-ai"),
+    (CommonSecurityLog
+        | where TimeGenerated > ago(Window)
+        | where RequestClientApplication startswith "CyberStrikeAI/" or RequestClientApplication == "CyberStrikeAI-Docker-build"
+            or RequestURL contains "/CyberStrikeAI/data/conversations.db"
+        | summarize Requests=count(), Destinations=make_set(DestinationHostName, 10), Timestamp=min(TimeGenerated) by SourceIP, RequestClientApplication
+        | project Timestamp, Device=SourceIP, Signal="CyberStrikeAI console traffic through the proxy",
+            Detail=strcat(RequestClientApplication, " -> ", tostring(Destinations), " x", Requests), Parent="")
+| order by Timestamp desc

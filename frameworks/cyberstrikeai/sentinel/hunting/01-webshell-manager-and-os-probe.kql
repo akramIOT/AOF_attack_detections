@@ -1,0 +1,32 @@
+// CyberStrikeAI webshell manager driving a webshell on your servers
+// AOF attack detections by ThreatDefence (CyberStrikeAI). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting with web and proxy logs in Microsoft Sentinel. Test before alerting.
+// From the CyberStrikeAI source code (AIPentest/CyberStrikeAI at af6cf750). Once its agent plants a webshell, the console's
+// webshell manager talks to it directly:
+//  - Every request carries the user agent "Mozilla/5.0 (compatible; CyberStrikeAI-WebShell/1.0)" (internal/handler/webshell.go:799).
+//  - Commands go in a "cmd" parameter next to a "pass" parameter, POSTed as a form or, in GET mode, in the query string.
+//  - The first thing it runs on a new shell is "echo :OSPROBE_%OS%:END" to tell Windows from Linux (webshell_probe.go:13).
+//    On Windows the web server's shell prints :OSPROBE_Windows_NT:END; on Linux the variable stays unexpanded.
+// The user agent and parameter names are code; the OS probe needs a code change. Elastic lists the user agent and the probe.
+
+let Window = 30d;
+let WebServers = dynamic(["w3wp.exe", "httpd.exe", "httpd", "nginx", "nginx.exe", "php-cgi.exe", "php-cgi", "php-fpm", "php.exe", "java.exe", "java", "tomcat9.exe", "node", "node.exe", "apache2", "sqlservr.exe"]);
+union isfuzzy=true
+    (W3CIISLog
+        | where TimeGenerated > ago(Window)
+        | extend UA = replace_string(csUserAgent, "+", " ")
+        | where UA has "CyberStrikeAI" or csUriQuery contains "OSPROBE_" or (csUriQuery matches regex @"(^|&)pass=" and csUriQuery matches regex @"(^|&)cmd=")
+        | summarize Requests=count(), Paths=make_set(csUriStem, 10), Timestamp=min(TimeGenerated) by Src=cIP, Target=sComputerName, UA
+        | project Timestamp, Src, Target, Signal="CyberStrikeAI webshell request in IIS logs (or pass and cmd parameters in the query)", Detail=strcat(UA, " ", tostring(Paths), " x", Requests)),
+    (CommonSecurityLog
+        | where TimeGenerated > ago(Window)
+        | where RequestClientApplication has "CyberStrikeAI" or RequestURL contains "OSPROBE_"
+        | summarize Requests=count(), URLs=make_set(RequestURL, 10), Timestamp=min(TimeGenerated) by Src=SourceIP, Target=DestinationHostName, UA=RequestClientApplication
+        | project Timestamp, Src, Target, Signal="CyberStrikeAI user agent or OS probe through the proxy or WAF", Detail=strcat(UA, " ", tostring(URLs))),
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where ProcessCommandLine contains "OSPROBE_"
+        | project Timestamp, Src="", Target=DeviceName,
+            Signal=iff(InitiatingProcessFileName in~ (WebServers), "Web server ran the CyberStrikeAI OS probe", "CyberStrikeAI OS probe"),
+            Detail=strcat(InitiatingProcessFileName, " -> ", substring(ProcessCommandLine, 0, 200)))
+| order by Timestamp desc

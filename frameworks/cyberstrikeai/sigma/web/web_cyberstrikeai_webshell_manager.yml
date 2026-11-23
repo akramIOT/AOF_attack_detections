@@ -1,0 +1,28 @@
+title: CyberStrikeAI Webshell Manager User Agent or OS Probe in Web Logs
+id: b7dfb449-f158-50ef-bedf-fda0cfd8cb79
+status: experimental
+description: |
+    Detects requests from CyberStrikeAI's webshell manager to a planted webshell: its hard-coded user agent, or the
+    "echo :OSPROBE_%OS%:END" command it sends in the cmd parameter (visible in GET mode).
+references:
+    - https://github.com/AIPentest/CyberStrikeAI
+    - https://www.elastic.co/security-labs/threat-command/agentic-offensive-frameworks-detection-artex
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.persistence
+    - attack.t1505.003
+logsource:
+    category: webserver
+detection:
+    selection_ua:
+        cs-user-agent|contains: 'CyberStrikeAI-WebShell/'
+    selection_probe:
+        cs-uri-query|contains:
+            - 'OSPROBE_'
+            - 'OSPROBE%5F'
+    condition: 1 of selection_*
+falsepositives:
+    - Authorized tests with CyberStrikeAI
+level: high

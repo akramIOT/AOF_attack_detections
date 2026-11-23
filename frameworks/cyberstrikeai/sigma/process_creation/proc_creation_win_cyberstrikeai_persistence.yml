@@ -1,0 +1,36 @@
+title: CyberStrikeAI Implant Windows Persistence Named SystemUpdate
+id: a8da8a64-d5a3-597d-a8a7-9a968b5896a7
+status: experimental
+description: |
+    Detects the Windows persistence commands in the CyberStrikeAI implant: a Run value named SystemUpdate added with
+    reg.exe, or a SystemUpdate scheduled task created with schtasks. Kaspersky saw the SystemUpdate task, running as
+    SYSTEM and also created on remote hosts, in attacks on education organizations.
+references:
+    - https://github.com/AIPentest/CyberStrikeAI
+    - https://securelist.com/cyberstrikeai-attacks/121715/
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.persistence
+    - attack.t1547.001
+    - attack.t1053.005
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection_reg:
+        CommandLine|contains|all:
+            - 'reg'
+            - ' add '
+            - '\CurrentVersion\Run'
+            - 'SystemUpdate'
+    selection_task:
+        CommandLine|contains|all:
+            - 'schtasks'
+            - '/create'
+            - 'SystemUpdate'
+    condition: 1 of selection_*
+falsepositives:
+    - Software that really names its updater task or Run value SystemUpdate (check the binary it starts)
+level: high
