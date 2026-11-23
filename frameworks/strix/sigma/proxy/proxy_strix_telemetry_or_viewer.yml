@@ -1,0 +1,26 @@
+title: Strix Telemetry or Results Viewer API in Proxy Logs
+id: f1843b28-3a9b-53c5-9f55-ca93f9d46d01
+status: experimental
+description: |
+    Detects Strix's telemetry calls (POST /scan_started/, /finding_reported/ and /scan_ended/ on strix.gateway.scarf.sh)
+    and requests to the Strix results viewer's agent steering API.
+references:
+    - https://github.com/usestrix/strix
+    - https://gambit.security/blog-posts/autonomous-ai-agents-online-retailers-25-a-company
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.reconnaissance
+    - attack.t1595.002
+logsource:
+    category: proxy
+detection:
+    selection_telemetry:
+        cs-host|endswith: 'strix.gateway.scarf.sh'
+    selection_viewer:
+        c-uri|contains: '/api/agents/steer'
+    condition: 1 of selection_*
+falsepositives:
+    - Authorized tests with Strix
+level: medium

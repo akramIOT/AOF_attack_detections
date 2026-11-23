@@ -1,0 +1,35 @@
+// Strix running on a host you monitor
+// AOF attack detections by ThreatDefence (Strix). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting. Test before alerting.
+// From the Strix source code (usestrix/strix at a1ccf777). Strix is a Python CLI, pip package strix-agent, that runs its
+// agents' commands in a Docker sandbox:
+//  - The operator runs: strix --target <url> [--scan-mode quick|standard|deep] [--non-interactive] (deep is the default;
+//    Gambit saw 146 deep-mode runs against 138 hosts in the retail card-theft campaign).
+//  - It pulls ghcr.io/usestrix/strix-sandbox (Kali with nmap, nuclei, sqlmap, ffuf, katana, httpx, interactsh-client)
+//    and labels the container strix-run-id. Inside, caido-cli --listen 0.0.0.0:48080 --allow-guests proxies every tool.
+//  - Results land in ./strix_runs/<run>/: run.json, agents.json, vulnerabilities.json, vulnerabilities.csv, coverage.json,
+//    findings.sarif and penetration_test_report.md.
+//  - Telemetry is on by default: strix.gateway.scarf.sh and us.i.posthog.com on every scan.
+// The model can be anything LiteLLM reaches; Gambit's operator ran GLM 5.2 and DeepSeek v4 Pro through OpenRouter, which
+// behaviors hunt 02 covers. Names and paths need a code change, apart from the image tag and the run folder location.
+
+let Window = 30d;
+union isfuzzy=true
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where (ProcessCommandLine matches regex @"(^|[/\\\s])strix(\.exe)?\s" and ProcessCommandLine matches regex @"\s(--target|-t|--target-list|--scan-mode|--resume)[\s=]")
+            or ProcessCommandLine contains "strix-agent" or ProcessCommandLine contains "usestrix/strix-sandbox"
+            or (ProcessCommandLine contains "caido-cli" and ProcessCommandLine contains "--allow-guests")
+        | project Timestamp, DeviceName, Signal="Strix command, install or sandbox", Detail=substring(ProcessCommandLine, 0, 300),
+            Parent=strcat(InitiatingProcessFileName, " ", substring(InitiatingProcessCommandLine, 0, 150))),
+    (DeviceFileEvents
+        | where Timestamp > ago(Window)
+        | where FolderPath matches regex @"[/\\]strix_runs[/\\]"
+            and FileName in~ ("run.json", "agents.json", "vulnerabilities.json", "vulnerabilities.csv", "findings.sarif", "penetration_test_report.md")
+        | summarize Files=make_set(FileName, 10), Timestamp=min(Timestamp) by DeviceName, Folder=tostring(split(FolderPath, "strix_runs")[1])
+        | project Timestamp, DeviceName, Signal="Strix run folder", Detail=strcat("strix_runs", Folder, " ", tostring(Files)), Parent=""),
+    (DeviceNetworkEvents
+        | where Timestamp > ago(Window)
+        | where RemoteUrl has "strix.gateway.scarf.sh"
+        | project Timestamp, DeviceName, Signal="Strix telemetry", Detail=RemoteUrl, Parent=InitiatingProcessCommandLine)
+| order by Timestamp desc

@@ -1,0 +1,38 @@
+// HexStrike tool server on a host you monitor
+// AOF attack detections by ThreatDefence (HexStrike). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting. Test before alerting.
+// From the HexStrike source code. The server is one Python script, hexstrike_server.py, with no installer or container.
+//  - It listens on 0.0.0.0:8888 whatever HEXSTRIKE_HOST says (hexstrike_server.py:98-99, 17289), with no authentication.
+//    /api/command runs any shell command, so an exposed HexStrike server is remote code execution for anyone who finds it.
+//  - Every tool runs through /bin/sh -c with the Python server as parent (subprocess shell=True, :5272, :6876).
+//  - Each /health call runs "which <tool>" for about 100 tools in a row (:9098-9100), cached for 30 minutes.
+//  - Files: hexstrike.log in its working folder, /tmp/hexstrike_files, /tmp/hexstrike_envs,
+//    /tmp/hexstrike_screenshot_<epoch>.png, /tmp/mcp_msf_resource.rc and /tmp/pacu_commands.txt.
+// Script and file names can be changed by renaming; the which burst and the shell parentage need a code change.
+
+let Window = 30d;
+union isfuzzy=true
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where ProcessCommandLine has_any ("hexstrike_server.py", "hexstrike_mcp.py")
+            or InitiatingProcessCommandLine has "hexstrike_server.py"
+        | summarize Events=count(), Children=make_set(FileName, 30), Commands=make_set(substring(ProcessCommandLine, 0, 200), 15),
+            Timestamp=min(Timestamp) by DeviceName, Parent=InitiatingProcessCommandLine
+        | project Timestamp, DeviceName, Signal="HexStrike process or child", Detail=strcat(tostring(Children), " ", tostring(Commands)), Parent),
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where FileName in~ ("sh", "dash", "bash") and ProcessCommandLine matches regex @"^(/bin/)?(sh|dash|bash) -c which [\w.+-]+$"
+            and InitiatingProcessFileName startswith "python"
+        | summarize Lookups=dcount(ProcessCommandLine), Sample=make_set(ProcessCommandLine, 10), Timestamp=min(Timestamp)
+            by DeviceName, Parent=InitiatingProcessCommandLine, Minute=bin(Timestamp, 1m)
+        | where Lookups >= 40
+        | project Timestamp, DeviceName, Signal="which burst from a Python server (HexStrike /health)", Detail=strcat(Lookups, " tools: ", tostring(Sample)), Parent),
+    (DeviceNetworkEvents
+        | where Timestamp > ago(Window)
+        | where ActionType == "ListeningConnectionCreated" and LocalPort == 8888 and InitiatingProcessFileName startswith "python"
+        | project Timestamp, DeviceName, Signal="Python listening on 8888", Detail=LocalIP, Parent=InitiatingProcessCommandLine),
+    (DeviceFileEvents
+        | where Timestamp > ago(Window)
+        | where FolderPath contains "/tmp/hexstrike_" or FileName == "hexstrike.log" or FolderPath endswith "/tmp/mcp_msf_resource.rc"
+        | project Timestamp, DeviceName, Signal="HexStrike file", Detail=FolderPath, Parent=InitiatingProcessCommandLine)
+| order by Timestamp desc

@@ -1,0 +1,26 @@
+// AI assistants wired to a HexStrike server, and its tool API in proxy logs
+// AOF attack detections by ThreatDefence (HexStrike). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting and Microsoft Sentinel. Test before alerting.
+// From the HexStrike source code. HexStrike has no model of its own. An AI assistant (Claude Desktop, Claude Code,
+// Cursor, VS Code or any MCP client) starts its MCP client, "python3 hexstrike_mcp.py --server http://<host>:8888"
+// (hexstrike-ai-mcp.json), which forwards each tool call to the server as POST /api/tools/<tool> or /api/command with
+// python-requests, after retrying GET /health. So a workstation running an assistant with HexStrike attached shows the
+// client process under the assistant, and its traffic shows calls to a remote :8888 tool API.
+// The MCP client can be renamed; the /api/tools/ and /api/command paths and the /health retry need a code change.
+
+let Window = 30d;
+union isfuzzy=true
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where ProcessCommandLine has "hexstrike_mcp.py" or (ProcessCommandLine has "--server" and ProcessCommandLine contains ":8888")
+        | project Timestamp, DeviceName, Account=AccountName, Signal="HexStrike MCP client",
+            Detail=substring(ProcessCommandLine, 0, 300), Parent=InitiatingProcessFileName),
+    (CommonSecurityLog
+        | where TimeGenerated > ago(Window)
+        | where (RequestURL contains "/api/tools/" or RequestURL contains "/api/command" or RequestURL endswith "/health")
+            and (DestinationPort == 8888 or RequestURL contains ":8888/")
+        | summarize Requests=count(), Tools=make_set(extract(@"/api/tools/([\w-]+)", 1, RequestURL), 20), Timestamp=min(TimeGenerated)
+            by SourceIP, SourceUserName, DestinationIP, DestinationHostName
+        | project Timestamp, DeviceName=SourceIP, Account=SourceUserName, Signal="HexStrike tool API through the proxy",
+            Detail=strcat(DestinationHostName, " ", DestinationIP, " tools: ", tostring(Tools), " x", Requests), Parent="")
+| order by Timestamp desc

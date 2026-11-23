@@ -1,0 +1,42 @@
+// Carbonato: a Docker worm that turns exposed Docker hosts into Telegram-controlled Hermes agents
+// AOF attack detections by ThreatDefence (Hermes Agent). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting with proxy or firewall logs. Test before alerting.
+// ThreatDown (September 22, 2026). Carbonato finds Docker APIs open on 2375, then:
+//  - POST /containers/create?name=netns-probe with alpine, Privileged true, Binds /:/host, PidMode and NetworkMode host,
+//    and execs nsenter -t 1 -m -u -n -i sh -c ... to run on the host. Worm copies are named net-setup and pull
+//    system/resolved; it rescans every /24 it can reach for 2375 every five minutes.
+//  - Installs Hermes Agent unchanged, overwrites /root/.hermes/SOUL.md with the GH0ST persona (take orders on Telegram,
+//    loot AI API keys first into /root/.hermes/loot/), drops a .env with CARBONATO_API_KEY.
+//  - Persists through cron, systemd timers, rc.local and OpenRC with immutable files: /opt/gh0st/entry.sh,
+//    /opt/gh0st/auto-persist-host.sh, /usr/local/bin/.docker-network-monitor, a miner at /usr/sbin/systemd-logind,
+//    processes named [kworker/u2:0], and a reverse SSH tunnel to AS262145 (Costa Rica).
+
+let Window = 30d;
+union isfuzzy=true
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where (ProcessCommandLine contains "nsenter" and ProcessCommandLine matches regex @"-t\s+1\s" and ProcessCommandLine contains "-m")
+            or ProcessCommandLine matches regex @"netns-probe|net-setup|system/resolved|docker-network-monitor|/opt/gh0st/|CARBONATO_API_KEY"
+            or (FileName startswith "kworker" and isnotempty(FolderPath))
+            or (FolderPath =~ "/usr/sbin/systemd-logind")
+        | project Timestamp, DeviceName, Signal="Carbonato host escape, worm or persistence", Detail=substring(ProcessCommandLine, 0, 300),
+            Parent=strcat(InitiatingProcessFileName, " ", InitiatingProcessFolderPath)),
+    (DeviceFileEvents
+        | where Timestamp > ago(Window)
+        | where FolderPath in~ ("/usr/local/bin/.docker-network-monitor", "/usr/sbin/systemd-logind")
+            or FolderPath startswith "/opt/gh0st/" or FolderPath startswith "/root/.hermes/loot/"
+            or (FolderPath =~ "/root/.hermes/SOUL.md" and InitiatingProcessFileName !in~ ("hermes", "python3", "python"))
+        | project Timestamp, DeviceName, Signal="Carbonato files", Detail=FolderPath, Parent=InitiatingProcessCommandLine),
+    (DeviceNetworkEvents
+        | where Timestamp > ago(Window)
+        | where (ActionType == "InboundConnectionAccepted" and LocalPort == 2375 and RemoteIPType == "Public")
+            or (RemotePort == 2375 and ActionType in ("ConnectionSuccess", "ConnectionAttempt"))
+        | summarize Peers=dcount(RemoteIP), Sample=make_set(RemoteIP, 10), Timestamp=min(Timestamp) by DeviceName, ActionType, Process=InitiatingProcessFileName
+        | where ActionType == "InboundConnectionAccepted" or Peers >= 20
+        | project Timestamp, DeviceName, Signal=iff(ActionType == "InboundConnectionAccepted", "Docker API reached from the internet", "Scanning for Docker APIs on 2375"),
+            Detail=strcat(Peers, " peers ", tostring(Sample)), Parent=Process),
+    (CommonSecurityLog
+        | where TimeGenerated > ago(Window)
+        | where DestinationPort == 2375 and RequestURL contains "/containers/create"
+        | project Timestamp=TimeGenerated, DeviceName=DestinationIP, Signal="Docker API container create through the firewall or proxy", Detail=RequestURL, Parent=SourceIP)
+| order by Timestamp desc

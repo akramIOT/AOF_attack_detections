@@ -1,0 +1,15 @@
+# AOF attack detections by ThreatDefence: HexStrike
+# https://github.com/ThreatDefence/AOF_attack_detections
+# Suricata 7 and 8. SID range 9729001-9729499. HTTP rules need cleartext HTTP or decrypted traffic.
+# The HexStrike server API on 8888 is plain HTTP, so its rules work without decryption.
+
+# --- Requests that reach your targets ---
+alert http any any -> any any (msg:"TD HexStrike HTTP framework user agent"; flow:established,to_server; http.user_agent; content:"HexStrike-HTTP-Framework/"; fast_pattern; classtype:web-application-attack; sid:9729001; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family HexStrike;)
+alert http any any -> any any (msg:"TD HexStrike browser agent user agent"; flow:established,to_server; http.user_agent; content:"HexStrike-BrowserAgent/"; fast_pattern; classtype:web-application-attack; sid:9729002; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family HexStrike;)
+alert http any any -> any any (msg:"TD HexStrike generated exploit user agent"; flow:established,to_server; http.user_agent; content:"Mozilla/5.0 (Compatible Exploit)"; fast_pattern; classtype:web-application-attack; sid:9729003; rev:1; metadata:created_at 2026_11_21, confidence Medium, malware_family HexStrike;)
+alert http any any -> $HTTP_SERVERS any (msg:"TD HexStrike XSS reflection probe"; flow:established,to_server; http.uri; content:"hexstrikeXSSTest123"; fast_pattern; classtype:web-application-attack; sid:9729004; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family HexStrike;)
+
+# --- The HexStrike server API (exposed server, or an MCP client driving one) ---
+alert http any any -> any 8888 (msg:"TD HexStrike shell command API request"; flow:established,to_server; http.method; content:"POST"; http.uri; content:"/api/command"; startswith; fast_pattern; classtype:attempted-admin; sid:9729010; rev:1; metadata:created_at 2026_11_21, confidence Medium, malware_family HexStrike;)
+alert http any any -> any 8888 (msg:"TD HexStrike tool API request"; flow:established,to_server; http.method; content:"POST"; http.uri; content:"/api/tools/"; startswith; fast_pattern; classtype:attempted-admin; sid:9729011; rev:1; metadata:created_at 2026_11_21, confidence Medium, malware_family HexStrike;)
+alert http any 8888 -> any any (msg:"TD HexStrike server health response"; flow:established,to_client; http.response_body; content:"HexStrike AI Tools API Server is operational"; fast_pattern; classtype:policy-violation; sid:9729012; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family HexStrike;)

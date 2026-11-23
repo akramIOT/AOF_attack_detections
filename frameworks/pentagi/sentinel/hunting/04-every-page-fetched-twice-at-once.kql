@@ -1,0 +1,27 @@
+// Every page fetched twice at once: PentAGI's browser tool reading your application
+// AOF attack detections by ThreatDefence (PentAGI). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Microsoft Sentinel. Test and baseline before alerting.
+// From the PentAGI source code. The browser tool hands each page to the scraper service twice in parallel: once for the
+// content (/html, /markdown or /links) and once for a full-page screenshot (/screenshot?fullPage=true), started together
+// in two goroutines (backend/pkg/tools/browser.go). The scraper is a headless browser, so your logs see the same URL
+// requested twice within a second or two from the same address, page after page, often followed by the assets a
+// full-page render loads. Elastic noted the same pattern. Browsers and crawlers rarely request one HTML page twice at
+// the same moment.
+// Exclude your uptime monitors and link-preview services, which can produce the same pairs.
+
+let Window = 7d;
+let Static = @"(?i)\.(js|css|png|jpe?g|gif|svg|ico|woff2?|ttf|map|webp)(\?|$)";
+union isfuzzy=true
+    (CommonSecurityLog | where TimeGenerated > ago(Window) and RequestMethod == "GET" and isnotempty(RequestURL)
+        | project TimeGenerated, Src=SourceIP, Host=DestinationHostName, Url=RequestURL, UA=RequestClientApplication),
+    (W3CIISLog | where TimeGenerated > ago(Window) and csMethod == "GET"
+        | project TimeGenerated, Src=cIP, Host=csHost, Url=strcat(csUriStem, "?", csUriQuery), UA=csUserAgent)
+| where not(Url matches regex Static)
+| summarize Hits=count(), First=min(TimeGenerated), Last=max(TimeGenerated), UAs=make_set(UA, 3) by Src, Host, Url, Second2=bin(TimeGenerated, 2s)
+// The same page twice inside two seconds
+| where Hits == 2
+| summarize Pairs=count(), Pages=dcount(Url), SampleURLs=make_set(Url, 10), UAs=make_set(UAs, 5),
+    FirstSeen=min(First), LastSeen=max(Last) by Src, Host, Hour=bin(First, 1h)
+// Several different pages read the same way within an hour
+| where Pages >= 5
+| order by Pages desc

@@ -1,0 +1,24 @@
+title: PentAGI Console API Requested Through a Proxy
+id: 4aa64139-4b2a-5e14-8e9d-6da00255e620
+status: experimental
+description: |
+    Detects requests to PentAGI's update endpoint or to console API paths that only PentAGI uses.
+references:
+    - https://github.com/vxcontrol/pentagi
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.command-and-control
+    - attack.t1071.001
+logsource:
+    category: proxy
+detection:
+    selection_update:
+        c-uri|contains: '/api/v1/proxy/updates/pentagi/check'
+    selection_host:
+        cs-host: 'update.pentagi.com'
+    condition: 1 of selection_*
+falsepositives:
+    - Approved PentAGI deployments
+level: medium

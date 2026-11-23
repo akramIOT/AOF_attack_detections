@@ -1,0 +1,23 @@
+// Indicator sweep
+// AOF attack detections by ThreatDefence (PentAGI). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Microsoft Sentinel and Defender XDR advanced hunting. Test and baseline before alerting.
+// Addresses published for PentAGI so far: the PaperCut exploitation host Hunt.io tied to a PentAGI certificate, and
+// exposed or renamed PentAGI consoles RST Cloud verified on November 2, 2026. An exposed console is not proof of malicious
+// use, so treat those as leads. update.pentagi.com is PentAGI's own update service: a host of yours calling it every three
+// hours is running PentAGI. Hunt from August 1, 2026, the earliest malicious use GTIG reports.
+
+let PentagiIPs = dynamic([
+    "45.142.193.132","23.226.135.117","119.45.26.102","82.25.190.221","124.223.104.170",
+    "23.95.170.215","1.14.104.208","51.158.154.152","84.247.152.233"]);
+let PentagiDomains = dynamic(["update.pentagi.com", "support.pentagi.com"]);
+union isfuzzy=true
+    (SigninLogs | project TimeGenerated, Source="EntraSignIn", IP=IPAddress, Detail=UserPrincipalName, Extra=UserAgent),
+    (CommonSecurityLog | project TimeGenerated, Source="WebOrProxy", IP=SourceIP, Detail=RequestURL, Extra=DestinationIP),
+    (W3CIISLog | project TimeGenerated, Source="IIS", IP=cIP, Detail=csUriStem, Extra=csUserAgent),
+    (DeviceNetworkEvents | project TimeGenerated=Timestamp, Source="DeviceNetwork", IP=RemoteIP, Detail=RemoteUrl, Extra=DeviceName),
+    (DnsEvents | project TimeGenerated, Source="DNS", IP=ClientIP, Detail=Name, Extra=IPAddresses)
+| where TimeGenerated >= datetime(2026-08-01)
+| where IP in (PentagiIPs) or Extra in (PentagiIPs) or Detail has_any (PentagiDomains)
+| summarize Events=count(), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated), Samples=make_set(Detail, 10)
+    by Source, IP, Extra
+| order by FirstSeen asc

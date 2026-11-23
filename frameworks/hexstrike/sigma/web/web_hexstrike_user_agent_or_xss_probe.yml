@@ -1,0 +1,30 @@
+title: HexStrike User Agent or XSS Probe in Web Logs
+id: 58bf6da7-134f-5235-9cf6-79feb0fc62c7
+status: experimental
+description: |
+    Detects HexStrike's hard-coded user agents and the <hexstrikeXSSTest123> reflection probe its browser agent submits.
+references:
+    - https://github.com/0x4m4/hexstrike-ai
+    - https://www.elastic.co/security-labs/threat-command/agentic-offensive-frameworks-detection-artex
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.reconnaissance
+    - attack.t1595.002
+    - attack.initial-access
+    - attack.t1190
+logsource:
+    category: webserver
+detection:
+    selection_ua:
+        cs-user-agent|contains:
+            - 'HexStrike-HTTP-Framework/'
+            - 'HexStrike-BrowserAgent/'
+            - 'Mozilla/5.0 (Compatible Exploit)'
+    selection_probe:
+        cs-uri-query|contains: 'hexstrikeXSSTest123'
+    condition: 1 of selection_*
+falsepositives:
+    - Authorized tests with HexStrike
+level: high

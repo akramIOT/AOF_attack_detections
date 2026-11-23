@@ -1,0 +1,24 @@
+title: HexStrike Tool API Requested Through a Proxy
+id: c4520661-3276-5c29-932a-38a5620eea04
+status: experimental
+description: |
+    Detects an MCP client driving a remote HexStrike server: requests to /api/tools/<tool> or /api/command on port 8888.
+references:
+    - https://github.com/0x4m4/hexstrike-ai
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.command-and-control
+    - attack.t1071.001
+logsource:
+    category: proxy
+detection:
+    selection_path:
+        c-uri|contains:
+            - ':8888/api/tools/'
+            - ':8888/api/command'
+    condition: selection_path
+falsepositives:
+    - Authorized tests with HexStrike
+level: medium

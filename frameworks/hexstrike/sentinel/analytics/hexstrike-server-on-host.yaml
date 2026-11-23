@@ -1,0 +1,26 @@
+id: 6dd1c39c-6e49-533c-a4ff-bf308db63752
+name: HexStrike tool server or MCP client on a host
+description: |
+  A process ran hexstrike_server.py or hexstrike_mcp.py, or a security tool was started by hexstrike_server.py. HexStrike
+  exposes about 150 tools, and an unauthenticated /api/command shell, on 0.0.0.0:8888.
+  AOF attack detections by ThreatDefence: https://github.com/ThreatDefence/AOF_attack_detections
+severity: High
+requiredDataConnectors:
+  - connectorId: MicrosoftThreatProtection
+    dataTypes: []
+queryFrequency: 1h
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - Execution
+  - Discovery
+relevantTechniques:
+  - T1059.004
+  - T1046
+query: |
+  DeviceProcessEvents
+  | where ProcessCommandLine has_any ("hexstrike_server.py", "hexstrike_mcp.py") or InitiatingProcessCommandLine has "hexstrike_server.py"
+  | summarize Events=count(), Commands=make_set(substring(ProcessCommandLine, 0, 200), 15), FirstSeen=min(TimeGenerated) by DeviceName, AccountName
+version: 1.0.0
+kind: Scheduled

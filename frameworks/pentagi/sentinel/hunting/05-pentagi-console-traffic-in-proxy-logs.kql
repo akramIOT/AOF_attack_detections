@@ -1,0 +1,26 @@
+// PentAGI console and update traffic in your outbound proxy logs
+// AOF attack detections by ThreatDefence (PentAGI). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Microsoft Sentinel. Needs a proxy that records full URLs (TLS inspection). Test before alerting.
+// From the PentAGI source code. People on your network driving a remote PentAGI console, or a PentAGI host behind your
+// proxy, leave requests a proxy can name:
+//  - The console API under /api/v1: /api/v1/info answers without a session and reports the configured model providers,
+//    /api/v1/graphql carries the flows, /api/v1/graphql/playground and the Swagger UI ("PentAGI Swagger API") exist in
+//    developer builds (backend/pkg/server/router.go:72, 297-301, 522). Default port 8443, HTTPS with a PentAGI CA certificate.
+//  - The update check: POST https://update.pentagi.com/api/v1/proxy/updates/pentagi/check every 3 hours, with a
+//    proof-of-work ticket fetched first (backend/pkg/server/update/update.go:52).
+// Ports and the update interval are configuration. The API paths and the update endpoint need a code change.
+
+let Window = 30d;
+CommonSecurityLog
+| where TimeGenerated > ago(Window) and isnotempty(RequestURL)
+| extend Signal = case(
+    RequestURL contains "update.pentagi.com" or DestinationHostName =~ "update.pentagi.com", "PentAGI update check",
+    RequestURL contains "/api/v1/proxy/updates/pentagi/check", "PentAGI update check through a custom host",
+    RequestURL contains "/api/v1/graphql/playground", "PentAGI GraphQL playground",
+    RequestURL contains "/api/v1/info" and (DestinationPort in (8443, 8666, 8765) or RequestURL contains ":8443/"), "PentAGI console info endpoint",
+    RequestURL contains "/api/v1/graphql" and (DestinationPort in (8443, 8666, 8765) or RequestURL contains ":8443/"), "PentAGI console GraphQL",
+    "")
+| where isnotempty(Signal)
+| summarize Requests=count(), Signals=make_set(Signal), Destinations=make_set(DestinationHostName, 10),
+    SampleURLs=make_set(RequestURL, 10), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated) by SourceIP, SourceUserName
+| order by array_length(Signals) desc, Requests desc

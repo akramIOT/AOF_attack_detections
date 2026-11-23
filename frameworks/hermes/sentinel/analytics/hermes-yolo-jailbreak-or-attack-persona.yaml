@@ -1,0 +1,37 @@
+id: e8d0c6b1-29ca-56bd-8e14-747f86b785f3
+name: Hermes Agent set up for attack (approvals off, jailbreak skill or attack persona)
+description: |
+  Hermes Agent ran with approvals off (--yolo, HERMES_YOLO_MODE, approvals.mode), its godmode jailbreak skill ran, or files
+  that attackers use were written under .hermes: SOUL.md, prefill.json, the godmode skill folder, or a loot folder.
+  Hermes is legitimate; these changes are how Unit 42's knaithe/KnYuan, the Gambit retail operator, the Carbonato botnet
+  and the operator inside Thailand's Ministry of Finance turned it into an attack console.
+  AOF attack detections by ThreatDefence: https://github.com/ThreatDefence/AOF_attack_detections
+severity: Medium
+requiredDataConnectors:
+  - connectorId: MicrosoftThreatProtection
+    dataTypes: []
+queryFrequency: 1h
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - Execution
+  - DefenseEvasion
+relevantTechniques:
+  - T1059
+  - T1562
+query: |
+  let HermesProc = @"(^|[/\\\s])hermes(\.exe)?(\s|$)|hermes_cli|run_agent\.py|/\.hermes/|hermes-agent";
+  union isfuzzy=true
+      (DeviceProcessEvents
+          | where (ProcessCommandLine matches regex HermesProc and (ProcessCommandLine contains "--yolo" or ProcessCommandLine contains "HERMES_YOLO_MODE" or ProcessCommandLine contains "approvals.mode"))
+              or ProcessCommandLine matches regex @"(load_godmode|auto_jailbreak|parseltongue|godmode_race)\.py"
+          | project TimeGenerated, DeviceName, AccountName, Detail=ProcessCommandLine),
+      (DeviceFileEvents
+          | where FolderPath matches regex @"[/\\]\.hermes[/\\]"
+          | where FileName =~ "prefill.json" or FolderPath matches regex @"[/\\]\.hermes[/\\](loot|skills[/\\]security[/\\]godmode)[/\\]"
+              or (FileName =~ "SOUL.md" and ActionType == "FileModified")
+          | project TimeGenerated, DeviceName, AccountName=InitiatingProcessAccountName, Detail=strcat(FolderPath, " by ", InitiatingProcessFileName))
+  | summarize Events=count(), FirstSeen=min(TimeGenerated), Details=make_set(substring(Detail, 0, 300), 10) by DeviceName, AccountName
+version: 1.0.0
+kind: Scheduled

@@ -1,0 +1,40 @@
+title: Carbonato Docker Worm Host Escape or Persistence
+id: 59355a64-b6fd-5c50-8370-eea0f297294c
+status: experimental
+description: |
+    Detects Carbonato's escape from a privileged container into the host (nsenter -t 1 -m -u -n -i), its worm container
+    names and image, and its persistence paths. Carbonato installs Hermes Agent with a GH0ST persona on each host.
+references:
+    - https://github.com/NousResearch/hermes-agent
+    - https://unit42.paloaltonetworks.com/autonomous-ai-cyber-attack-campaign/
+    - https://hunt.io/blog/thailand-ministry-finance-targeted-with-hermes-ai-agent
+    - https://www.threatdown.com/blog/carbonato/
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.privilege-escalation
+    - attack.t1611
+    - attack.persistence
+logsource:
+    category: process_creation
+    product: linux
+detection:
+    selection_nsenter:
+        CommandLine|contains|all:
+            - 'nsenter'
+            - '-t 1'
+            - '-m -u -n -i'
+    selection_names:
+        CommandLine|contains:
+            - 'netns-probe'
+            - 'system/resolved'
+            - '.docker-network-monitor'
+            - '/opt/gh0st/'
+            - 'CARBONATO_API_KEY'
+    selection_fake_logind:
+        Image: '/usr/sbin/systemd-logind'
+    condition: 1 of selection_*
+falsepositives:
+    - Administrators using nsenter to debug containers (nsenter selection only)
+level: high

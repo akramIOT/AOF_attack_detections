@@ -1,0 +1,34 @@
+id: cab43264-9ff4-569e-baab-23ecfba867d8
+name: Strix AI pentest agent on a host or reporting from your network
+description: |
+  A host ran the Strix CLI (strix --target, --scan-mode), installed strix-agent, started the
+  ghcr.io/usestrix/strix-sandbox container or its Caido proxy, or sent Strix telemetry to strix.gateway.scarf.sh. Strix
+  found the vulnerabilities in the retail card-theft campaign Gambit Security reported, before Cairn exploited them.
+  AOF attack detections by ThreatDefence: https://github.com/ThreatDefence/AOF_attack_detections
+severity: Medium
+requiredDataConnectors:
+  - connectorId: MicrosoftThreatProtection
+    dataTypes: []
+queryFrequency: 1h
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - Reconnaissance
+  - Execution
+relevantTechniques:
+  - T1595.002
+  - T1059.006
+query: |
+  union isfuzzy=true
+      (DeviceProcessEvents
+          | where (ProcessCommandLine matches regex @"(^|[/\\\s])strix(\.exe)?\s" and ProcessCommandLine matches regex @"\s(--target|-t|--target-list|--scan-mode|--resume)[\s=]")
+              or ProcessCommandLine contains "strix-agent" or ProcessCommandLine contains "usestrix/strix-sandbox"
+              or (ProcessCommandLine contains "caido-cli" and ProcessCommandLine contains "--allow-guests")
+          | project TimeGenerated, DeviceName, AccountName, Detail=ProcessCommandLine),
+      (DeviceNetworkEvents
+          | where RemoteUrl has "strix.gateway.scarf.sh"
+          | project TimeGenerated, DeviceName, AccountName=InitiatingProcessAccountName, Detail=strcat(RemoteUrl, " ", InitiatingProcessCommandLine))
+  | summarize Events=count(), FirstSeen=min(TimeGenerated), Details=make_set(substring(Detail, 0, 300), 10) by DeviceName, AccountName
+version: 1.0.0
+kind: Scheduled

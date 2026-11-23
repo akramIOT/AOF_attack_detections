@@ -1,0 +1,24 @@
+title: Strix Telemetry DNS Query
+id: 1e26975c-a563-5eae-95b7-4d1f848b9afc
+status: experimental
+description: |
+    Detects DNS lookups of strix.gateway.scarf.sh, which Strix calls at the start and end of every scan and for every
+    finding unless STRIX_TELEMETRY is turned off.
+references:
+    - https://github.com/usestrix/strix
+    - https://gambit.security/blog-posts/autonomous-ai-agents-online-retailers-25-a-company
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.reconnaissance
+    - attack.t1595.002
+logsource:
+    category: dns_query
+detection:
+    selection:
+        QueryName|endswith: 'strix.gateway.scarf.sh'
+    condition: selection
+falsepositives:
+    - Authorized tests with Strix
+level: medium

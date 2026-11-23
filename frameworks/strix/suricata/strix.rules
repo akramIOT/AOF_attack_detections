@@ -1,0 +1,12 @@
+# AOF attack detections by ThreatDefence: Strix
+# https://github.com/ThreatDefence/AOF_attack_detections
+# Suricata 7 and 8. SID range 9731001-9731499. DNS and TLS SNI rules work on encrypted traffic.
+
+# --- Strix telemetry, on by default on every scan ---
+alert dns $HOME_NET any -> any any (msg:"TD Strix telemetry DNS query (strix.gateway.scarf.sh)"; dns.query; content:"strix.gateway.scarf.sh"; nocase; endswith; fast_pattern; classtype:policy-violation; sid:9731001; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family Strix;)
+alert tls $HOME_NET any -> $EXTERNAL_NET any (msg:"TD Strix telemetry TLS (strix.gateway.scarf.sh)"; flow:established,to_server; tls.sni; content:"strix.gateway.scarf.sh"; nocase; endswith; fast_pattern; classtype:policy-violation; sid:9731002; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family Strix;)
+alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"TD Strix telemetry finding reported"; flow:established,to_server; http.host; content:"strix.gateway.scarf.sh"; endswith; http.uri; content:"/finding_reported/"; startswith; fast_pattern; classtype:policy-violation; sid:9731003; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family Strix;)
+
+# --- The Strix results viewer ---
+alert http any any -> any any (msg:"TD Strix results viewer page"; flow:established,to_client; http.response_body; content:"<title>Strix Results</title>"; fast_pattern; classtype:policy-violation; sid:9731010; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family Strix;)
+alert http any any -> any any (msg:"TD Strix results viewer agent steering API"; flow:established,to_server; http.method; content:"POST"; http.uri; content:"/api/agents/steer"; startswith; fast_pattern; classtype:policy-violation; sid:9731011; rev:1; metadata:created_at 2026_11_21, confidence Medium, malware_family Strix;)

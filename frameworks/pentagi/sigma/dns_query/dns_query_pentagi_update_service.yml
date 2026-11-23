@@ -1,0 +1,25 @@
+title: DNS Query for the PentAGI Update Service
+id: 54c4cc35-919a-53c8-85b0-0dba9584867c
+status: experimental
+description: |
+    Detects lookups of update.pentagi.com and support.pentagi.com. Every PentAGI installation checks for updates every
+    three hours by default, so a hit shows where PentAGI runs.
+references:
+    - https://github.com/vxcontrol/pentagi
+    - https://threatlandscape.io/blog/ai-enabled-attack-infrastructure-default-exposures-detection-fingerprints
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.command-and-control
+    - attack.t1071.004
+logsource:
+    category: dns_query
+detection:
+    selection:
+        QueryName:
+            - 'update.pentagi.com'
+            - 'support.pentagi.com'
+    condition: selection
+falsepositives:
+    - Approved PentAGI deployments
+level: medium

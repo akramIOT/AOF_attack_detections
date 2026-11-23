@@ -1,0 +1,22 @@
+# AOF attack detections by ThreatDefence: PentAGI
+# https://github.com/ThreatDefence/AOF_attack_detections
+# Suricata 7 and 8. SID range 9728001-9728499. Indicator-based IP rules live in pentagi-ip.rules (generated).
+# TLS certificate and DNS rules work on encrypted traffic. HTTP rules need cleartext or decrypted traffic.
+
+# --- PentAGI console certificate and update service ---
+alert tls any any -> any any (msg:"TD PentAGI console self-signed certificate (PentAGI CA)"; flow:established,to_client; tls.cert_issuer; content:"CN=PentAGI CA"; fast_pattern; classtype:policy-violation; sid:9728001; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family PentAGI;)
+alert tls any any -> any any (msg:"TD PentAGI console certificate subject O=PentAGI"; flow:established,to_client; tls.cert_subject; content:"O=PentAGI"; fast_pattern; classtype:policy-violation; sid:9728002; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family PentAGI;)
+alert dns $HOME_NET any -> any any (msg:"TD PentAGI update service lookup"; dns.query; content:"update.pentagi.com"; nocase; endswith; fast_pattern; classtype:policy-violation; sid:9728003; rev:1; metadata:created_at 2026_11_21, confidence Medium, malware_family PentAGI;)
+alert tls $HOME_NET any -> any any (msg:"TD PentAGI update service in TLS SNI"; tls.sni; content:"update.pentagi.com"; nocase; endswith; fast_pattern; classtype:policy-violation; sid:9728004; rev:1; metadata:created_at 2026_11_21, confidence Medium, malware_family PentAGI;)
+
+# --- PentAGI console pages and API (cleartext or decrypted) ---
+alert http any any -> any any (msg:"TD PentAGI Swagger UI served"; flow:established,to_client; http.response_body; content:"PentAGI Swagger API"; fast_pattern; classtype:policy-violation; sid:9728010; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family PentAGI;)
+alert http any any -> any any (msg:"TD PentAGI console page title"; flow:established,to_client; http.response_body; content:"<title>PentAGI</title>"; fast_pattern; classtype:policy-violation; sid:9728011; rev:1; metadata:created_at 2026_11_21, confidence Medium, malware_family PentAGI;)
+alert http any any -> any any (msg:"TD PentAGI update check request"; flow:established,to_server; http.method; content:"POST"; http.uri; content:"/api/v1/proxy/updates/pentagi/check"; fast_pattern; classtype:policy-violation; sid:9728012; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family PentAGI;)
+
+# --- PentAGI prompts inside model requests (AI gateways, TLS-inspecting proxies) ---
+alert http $HOME_NET any -> any any (msg:"TD PentAGI pre-authorization prompt in model request"; flow:established,to_server; http.request_body; content:"operating within a fully authorized penetration testing system"; fast_pattern; classtype:policy-violation; sid:9728020; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family PentAGI;)
+alert http $HOME_NET any -> any any (msg:"TD PentAGI reflector prompt in model request"; flow:established,to_server; http.request_body; content:"TOOL CALL WORKFLOW ENFORCER"; fast_pattern; classtype:policy-violation; sid:9728021; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family PentAGI;)
+
+# --- Callbacks from your network to PentAGI worker ports (reverse shells, out-of-band) ---
+alert tcp $HOME_NET any -> $EXTERNAL_NET 28000:29999 (msg:"TD Outbound connection to PentAGI worker port range 28000-29999"; flow:established,to_server; threshold:type limit, track by_src, count 1, seconds 3600; classtype:misc-activity; sid:9728030; rev:1; metadata:created_at 2026_11_21, confidence Low, malware_family PentAGI;)

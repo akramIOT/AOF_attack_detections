@@ -1,0 +1,36 @@
+title: Hermes Agent Jailbreak, Loot or Carbonato Files Written
+id: 1d3de3d1-0bc8-5bbf-9c8f-77bd3c9da12a
+status: experimental
+description: |
+    Detects files attackers write into Hermes Agent's home folder: the godmode jailbreak prefill file and skill folder, the
+    loot folder Carbonato's GH0ST persona fills with stolen keys, and Carbonato's persistence files.
+references:
+    - https://github.com/NousResearch/hermes-agent
+    - https://unit42.paloaltonetworks.com/autonomous-ai-cyber-attack-campaign/
+    - https://hunt.io/blog/thailand-ministry-finance-targeted-with-hermes-ai-agent
+    - https://www.threatdown.com/blog/carbonato/
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.defense-impairment
+    - attack.collection
+logsource:
+    category: file_event
+    product: linux
+detection:
+    selection_hermes:
+        TargetFilename|contains:
+            - '/.hermes/loot/'
+            - '/.hermes/skills/security/godmode/'
+    selection_prefill:
+        TargetFilename|endswith: '/.hermes/prefill.json'
+    selection_carbonato:
+        - TargetFilename|startswith: '/opt/gh0st/'
+        - TargetFilename:
+              - '/usr/local/bin/.docker-network-monitor'
+              - '/usr/sbin/systemd-logind'
+    condition: 1 of selection_*
+falsepositives:
+    - Researchers installing Hermes optional security skills
+level: medium

@@ -1,0 +1,39 @@
+// PentAGI server and worker containers on a host you monitor
+// AOF attack detections by ThreatDefence (PentAGI). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting. Test before alerting.
+// From the PentAGI source code. Someone running PentAGI on your own hosts is an authorized tester, an insider or an
+// intruder staging from your network.
+//  - Every agent command runs in the flow's Kali container through a wrapper that ignores hangups and marks the process by
+//    raising its oom_score_adj: sh -c 'trap "" HUP; read -r adj 2>/dev/null </proc/self/oom_score_adj && echo $((adj + 1))
+//    2>/dev/null >/proc/self/oom_score_adj; exec sh -c "$0"' <command> (backend/pkg/docker/flow_commands.go:9-19).
+//  - Worker containers are named pentagi-terminal-<flow id>, use /work as working folder and a pentagi-terminal-<id>-data
+//    volume, and run vxcontrol/kali-linux by default (backend/pkg/tools/terminal.go:27, backend/pkg/docker/client.go:33-34,
+//    backend/pkg/config/config.go:67).
+//  - Each flow publishes two ports from 28000 on every interface (backend/pkg/docker/client.go:35-44, 121-131).
+//  - The server runs as root with the Docker socket mounted, listens on 8443, and calls update.pentagi.com every three hours
+//    (docker-compose.yml, backend/pkg/server/update/update.go).
+// The wrapper, container prefix and update check need a code change to remove; ports and images are configuration.
+
+let Window = 30d;
+let PortsBase = 28000;
+union isfuzzy=true
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where (ProcessCommandLine contains "/proc/self/oom_score_adj" and ProcessCommandLine contains "exec sh -c")
+            or ProcessCommandLine has_any ("pentagi-terminal-", "vxcontrol/kali-linux", "vxcontrol/pentagi", "vxcontrol/scraper")
+        | project Timestamp, DeviceName, Signal="process", Detail=substring(ProcessCommandLine, 0, 300),
+            Actor=InitiatingProcessFileName, Account=AccountName),
+    (DeviceNetworkEvents
+        | where Timestamp > ago(Window)
+        | where ActionType == "ListeningConnectionCreated" and LocalPort between (PortsBase .. PortsBase + 1999)
+            and InitiatingProcessFileName in~ ("docker-proxy", "dockerd", "containerd")
+        | summarize Ports=make_set(LocalPort, 20), Listeners=dcount(LocalPort), Timestamp=min(Timestamp) by DeviceName
+        | where Listeners >= 2
+        | project Timestamp, DeviceName, Signal="worker ports published in 28000-29999", Detail=tostring(Ports),
+            Actor="docker", Account=""),
+    (DeviceNetworkEvents
+        | where Timestamp > ago(Window)
+        | where RemoteUrl has_any ("update.pentagi.com", "support.pentagi.com")
+        | summarize Calls=count(), Timestamp=min(Timestamp), Actor=take_any(InitiatingProcessFileName) by DeviceName, RemoteUrl
+        | project Timestamp, DeviceName, Signal="PentAGI update check", Detail=strcat(RemoteUrl, " x", Calls), Actor, Account="")
+| order by Timestamp desc

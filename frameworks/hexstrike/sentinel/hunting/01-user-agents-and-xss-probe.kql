@@ -1,0 +1,25 @@
+// HexStrike user agents and its cross-site scripting probe
+// AOF attack detections by ThreatDefence (HexStrike). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Microsoft Sentinel and Defender XDR advanced hunting. Test and baseline before alerting.
+// From the HexStrike source code. Its HTTP testing framework sends "HexStrike-HTTP-Framework/1.0 (Advanced Security
+// Testing)" (hexstrike_server.py:13287), its Selenium browser agent sends "HexStrike-BrowserAgent/1.0 (Security Testing)"
+// (:13644) and, during active tests, submits <hexstrikeXSSTest123> into every text field of GET forms (:13819). The CVE
+// exploit scripts it generates send "Mozilla/5.0 (Compatible Exploit)" (:7098). Elastic lists the first three as what to
+// watch for. The user agents are code defaults; an operator who edits them removes them, but most run it as published.
+// No address has been published for HexStrike operations, so this hunt looks for the strings instead.
+
+let UAs = dynamic(["HexStrike-HTTP-Framework/", "HexStrike-BrowserAgent/", "Mozilla/5.0 (Compatible Exploit)"]);
+union isfuzzy=true
+    (SigninLogs | where UserAgent has_any (UAs)
+        | project TimeGenerated, Source="SigninLogs", Src=IPAddress, Target=AppDisplayName, Detail=UserPrincipalName, UA=UserAgent),
+    (CommonSecurityLog | where RequestClientApplication has_any (UAs) or RequestURL contains "hexstrikeXSSTest123"
+        | project TimeGenerated, Source="CommonSecurityLog", Src=SourceIP, Target=DestinationHostName, Detail=RequestURL, UA=RequestClientApplication),
+    (W3CIISLog | extend UA=replace_string(csUserAgent, "+", " ")
+        | where UA has_any (UAs) or csUriQuery contains "hexstrikeXSSTest123"
+        | project TimeGenerated, Source="W3CIISLog", Src=cIP, Target=csHost, Detail=strcat(csUriStem, "?", csUriQuery), UA),
+    (AWSCloudTrail | where UserAgent has_any (UAs)
+        | project TimeGenerated, Source="AWSCloudTrail", Src=SourceIpAddress, Target=EventSource, Detail=EventName, UA=UserAgent)
+| where TimeGenerated > ago(90d)
+| summarize Events=count(), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated), Samples=make_set(Detail, 10),
+    UAs=make_set(UA, 5) by Source, Src, Target
+| order by FirstSeen asc

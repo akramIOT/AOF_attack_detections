@@ -1,0 +1,28 @@
+id: 18f326a6-e598-521d-98db-d54f15a8725a
+name: PentAGI agent command wrapper on a host
+description: |
+  A process ran PentAGI's agent command wrapper (trap "" HUP, raise /proc/self/oom_score_adj by one, exec sh -c "$0"),
+  or referenced a pentagi-terminal-<flow> worker container or a vxcontrol image. PentAGI runs every agent command this way
+  (backend/pkg/docker/flow_commands.go), so this host is running PentAGI engagements.
+  AOF attack detections by ThreatDefence: https://github.com/ThreatDefence/AOF_attack_detections
+severity: High
+requiredDataConnectors:
+  - connectorId: MicrosoftThreatProtection
+    dataTypes: []
+queryFrequency: 1h
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - Execution
+  - Discovery
+relevantTechniques:
+  - T1059.004
+  - T1046
+query: |
+  DeviceProcessEvents
+  | where (ProcessCommandLine contains "/proc/self/oom_score_adj" and ProcessCommandLine contains "exec sh -c")
+      or ProcessCommandLine has_any ("pentagi-terminal-", "vxcontrol/kali-linux", "vxcontrol/pentagi")
+  | summarize Events=count(), Commands=make_set(substring(ProcessCommandLine, 0, 300), 10), FirstSeen=min(TimeGenerated) by DeviceName, DeviceId
+version: 1.0.0
+kind: Scheduled

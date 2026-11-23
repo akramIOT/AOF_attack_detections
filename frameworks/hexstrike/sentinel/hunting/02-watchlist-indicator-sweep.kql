@@ -1,0 +1,30 @@
+// Indicator sweep with the agentic watchlist
+// AOF attack detections by ThreatDefence (HexStrike). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Upload feeds/sentinel-watchlist.csv as a Microsoft Sentinel watchlist with the alias AOF_IOCs and the search key
+// "value". A match needs investigation. Addresses are reassigned, so check the reported date and review_by.
+
+let IOC = _GetWatchlist('AOF_IOCs') | where framework has "hexstrike" | project value=tostring(SearchKey), type, confidence, actor, source;
+let IPList = toscalar(IOC | where type == "ipv4" | summarize make_list(value));
+let UAs = toscalar(IOC | where type == "user_agent" and confidence in ("high", "medium") | summarize make_list(value));
+let Domains = toscalar(IOC | where type == "domain" | summarize make_list(value));
+union isfuzzy=true
+    (SigninLogs | where TimeGenerated > ago(90d)
+        | where IPAddress in (IPList) or UserAgent has_any (UAs)
+        | project TimeGenerated, Source="SigninLogs", Indicator=coalesce(IPAddress, UserAgent), Detail=UserPrincipalName),
+    (CommonSecurityLog | where TimeGenerated > ago(90d)
+        | where SourceIP in (IPList) or DestinationIP in (IPList) or RequestClientApplication has_any (UAs) or DestinationHostName has_any (Domains)
+        | project TimeGenerated, Source="CommonSecurityLog", Detail=RequestURL,
+            Indicator=case(SourceIP in (IPList), SourceIP, DestinationIP in (IPList), DestinationIP, DestinationHostName)),
+    (W3CIISLog | where TimeGenerated > ago(90d)
+        | where cIP in (IPList) or replace_string(csUserAgent, "+", " ") has_any (UAs)
+        | project TimeGenerated, Source="W3CIISLog", Indicator=cIP, Detail=csUriStem),
+    (DeviceNetworkEvents | where Timestamp > ago(30d)
+        | where RemoteIP in (IPList) or RemoteUrl has_any (Domains)
+        | project TimeGenerated=Timestamp, Source="DeviceNetworkEvents", Indicator=coalesce(RemoteUrl, RemoteIP), Detail=DeviceName),
+    (DnsEvents | where TimeGenerated > ago(90d)
+        | where Name has_any (Domains)
+        | project TimeGenerated, Source="DnsEvents", Indicator=Name, Detail=ClientIP)
+| join kind=leftouter (IOC) on $left.Indicator == $right.value
+| summarize Events=count(), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated), Details=make_set(Detail, 10)
+    by Source, Indicator, actor, confidence
+| order by LastSeen desc

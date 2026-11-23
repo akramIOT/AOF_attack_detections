@@ -1,0 +1,28 @@
+// Strix telemetry and results viewers seen from your network
+// AOF attack detections by ThreatDefence (Strix). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Microsoft Sentinel. DNS works everywhere; URL paths need a proxy that records full URLs. Test before alerting.
+// From the Strix source code. Every scan reports itself unless the operator sets STRIX_TELEMETRY=false:
+//  - POST https://strix.gateway.scarf.sh/scan_started/<version>?..., /finding_reported/<version>?severity=<level>&cwe=...
+//    and /scan_ended/<version> (strix/telemetry/scarf.py). A finding_reported call means Strix just found something.
+//  - POST https://us.i.posthog.com/capture/ with the project key phc_7rO3XRuNT5sgSKAl6HDIrWdSGh1COzxw0vxVIAR6vVZ.
+// The results viewer (strix_runs browser) serves a page titled "Strix Results" with /api/runs, /api/run and
+// /api/agents/steer, on 127.0.0.1 and a random port by default; GitGuardian found 13 exposed, on 8080.
+// A machine on your network sending Strix telemetry is running Strix: an authorized test, or someone attacking from inside.
+
+let Window = 30d;
+union isfuzzy=true
+    (DnsEvents
+        | where TimeGenerated > ago(Window)
+        | where Name has "strix.gateway.scarf.sh"
+        | summarize Queries=count(), Timestamp=min(TimeGenerated) by Src=ClientIP
+        | project Timestamp, Src, Signal="DNS for Strix telemetry", Detail=strcat("x", Queries)),
+    (CommonSecurityLog
+        | where TimeGenerated > ago(Window)
+        | where DestinationHostName has "strix.gateway.scarf.sh" or RequestURL contains "strix.gateway.scarf.sh"
+            or (RequestURL contains "/api/agents/steer" or RequestURL endswith "/api/runs")
+        | extend Event = extract(@"scarf\.sh/([a-z_]+)/", 1, RequestURL), Severity = extract(@"severity=([a-z]+)", 1, RequestURL)
+        | summarize Requests=count(), Events=make_set(Event, 5), Severities=make_set(Severity, 5), URLs=make_set(RequestURL, 5),
+            Timestamp=min(TimeGenerated) by Src=SourceIP
+        | project Timestamp, Src, Signal="Strix telemetry or viewer API through the proxy",
+            Detail=strcat("events ", tostring(Events), " finding severities ", tostring(Severities), " ", tostring(URLs)))
+| order by Timestamp desc

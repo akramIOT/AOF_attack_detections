@@ -1,0 +1,27 @@
+title: HexStrike Server or MCP Client Process
+id: 23f271ff-3e26-57ca-81ec-347c96db618e
+status: experimental
+description: |
+    Detects the HexStrike tool server, its MCP client, and tools started by the server.
+references:
+    - https://github.com/0x4m4/hexstrike-ai
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.execution
+    - attack.t1059.004
+logsource:
+    product: linux
+    category: process_creation
+detection:
+    selection_self:
+        CommandLine|contains:
+            - 'hexstrike_server.py'
+            - 'hexstrike_mcp.py'
+    selection_child:
+        ParentCommandLine|contains: 'hexstrike_server.py'
+    condition: 1 of selection_*
+falsepositives:
+    - Authorized red team use of HexStrike
+level: high
