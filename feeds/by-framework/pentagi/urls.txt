@@ -1,0 +1,1 @@
+https://update.pentagi.com/api/v1/proxy/updates/pentagi/check

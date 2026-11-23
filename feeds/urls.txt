@@ -1,0 +1,17 @@
+http://down.zhzy999.net/microsoft.exe
+http://down.zhzy999.net/sec.exe
+http://ftp.vietnam852.com:88/test/MicrosoftEdgeUpdate.exe
+http://ftp.vietnam852.com:88/test/WinRing0x64.sys
+http://ftp.vietnam852.com:88/test/smss.exe
+http://ftp.vietnam852.com:88/test/winlogon.exe
+https://api.github.com/repos/BaaRai/ARTEX/releases/latest
+https://b8t.shop/js/sby.js
+https://cdn.js-static.com/js/pps.js
+https://cdn.js-static.com/js/tgo.js
+https://cdn.netlfjs.com/js/cts.js
+https://cdn.netlfjs.com/js/vla.js
+https://static-js.com/js/bmws.js
+https://static-js.com/js/nrt.js
+https://update.pentagi.com/api/v1/proxy/updates/pentagi/check
+https://x1opay.co/js/eut.js
+https://x1opay.co/js/l.js

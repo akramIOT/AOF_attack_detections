@@ -1,0 +1,5 @@
+Claude-User (claude-code/2.1.98; +https://support.anthropic.com/)
+Fuzz Faster U Fool v2.1.0-dev
+claude-cli/2.1.98
+codex_exec/0.118.0
+pi/0.73.0

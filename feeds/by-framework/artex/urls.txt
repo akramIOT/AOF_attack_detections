@@ -1,0 +1,7 @@
+http://down.zhzy999.net/microsoft.exe
+http://down.zhzy999.net/sec.exe
+http://ftp.vietnam852.com:88/test/MicrosoftEdgeUpdate.exe
+http://ftp.vietnam852.com:88/test/WinRing0x64.sys
+http://ftp.vietnam852.com:88/test/smss.exe
+http://ftp.vietnam852.com:88/test/winlogon.exe
+https://api.github.com/repos/BaaRai/ARTEX/releases/latest
