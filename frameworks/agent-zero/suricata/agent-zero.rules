@@ -1,0 +1,7 @@
+# AOF attack detections by ThreatDefence: Agent Zero
+# https://github.com/ThreatDefence/AOF_attack_detections
+# Suricata 7 and 8. SID range 9733001-9733499. Cleartext HTTP only (the stock UI is plain HTTP on 50080).
+
+alert http any any -> any any (msg:"TD Agent Zero web UI page"; flow:established,to_client; http.response_body; content:"<title>Agent Zero</title>"; fast_pattern; classtype:policy-violation; sid:9733001; rev:1; metadata:created_at 2026_11_21, confidence Low, malware_family AgentZero;)
+alert http any any -> any any (msg:"TD Agent Zero login page"; flow:established,to_client; http.response_body; content:"<title>Login - Agent Zero</title>"; fast_pattern; classtype:policy-violation; sid:9733002; rev:1; metadata:created_at 2026_11_21, confidence Low, malware_family AgentZero;)
+alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"TD Agent Zero user agent"; flow:established,to_server; http.user_agent; content:"agent-zero/"; startswith; fast_pattern; classtype:policy-violation; sid:9733003; rev:1; metadata:created_at 2026_11_21, confidence Low, malware_family AgentZero;)

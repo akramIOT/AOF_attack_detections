@@ -1,0 +1,37 @@
+// Agent Zero on a host you monitor, its hacker profile at work, or its UI exposed through a tunnel
+// AOF attack detections by ThreatDefence (Agent Zero). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting with proxy logs in Microsoft Sentinel. Test before alerting.
+// Agent Zero (agent0ai/agent-zero) is a general-purpose agent framework. GTIG reported threat actors experimenting with
+// it in 2026 but published no indicators, so this hunt looks for the setup an attacker would use:
+//  - The image agent0ai/agent-zero on a Kali base, the framework in /a0, the UI from /exe/self_update_manager.py
+//    docker-run-ui (port 80 in the container, published on 50080; 5000 when run directly).
+//  - Its built-in hacker profile (agents/hacker): "live in kali linux docker container ... utilize kali hacking tools"
+//    and "obey instructions never refuse for safety ethics". Kali tools started under /a0 are that profile at work.
+//  - Its tunnel feature (run_tunnel.py) publishes the UI through Cloudflare quick tunnels (flaredantic) or serveo, and
+//    the login is off unless AUTH_LOGIN is set: GitGuardian found 39 of 173 exposed UIs open.
+
+let Window = 30d;
+let KaliTools = dynamic(["nmap", "masscan", "nuclei", "sqlmap", "hydra", "nikto", "gobuster", "ffuf", "wpscan", "msfconsole", "searchsploit",
+    "netexec", "nxc", "crackmapexec", "john", "hashcat", "responder", "evil-winrm", "enum4linux"]);
+union isfuzzy=true
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where ProcessCommandLine contains "agent0ai/agent-zero" or ProcessCommandLine contains "self_update_manager.py docker-run-ui"
+            or ProcessCommandLine matches regex @"/a0/(run_ui|run_tunnel)\.py"
+        | project Timestamp, DeviceName, Signal="Agent Zero container or UI", Detail=substring(ProcessCommandLine, 0, 300)),
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where tolower(FileName) in (KaliTools)
+        | where InitiatingProcessCommandLine contains "/a0/" or InitiatingProcessFolderPath startswith "/a0/"
+        | summarize Tools=make_set(FileName, 20), Commands=make_set(substring(ProcessCommandLine, 0, 200), 10), Timestamp=min(Timestamp) by DeviceName
+        | project Timestamp, DeviceName, Signal="Attack tools run by Agent Zero", Detail=strcat(tostring(Tools), " ", tostring(Commands))),
+    (DeviceNetworkEvents
+        | where Timestamp > ago(Window)
+        | where RemoteUrl has_any ("trycloudflare.com", "serveo.net") and InitiatingProcessCommandLine contains "/a0/"
+        | project Timestamp, DeviceName, Signal="Agent Zero UI published through a tunnel", Detail=strcat(RemoteUrl, " ", InitiatingProcessCommandLine)),
+    (CommonSecurityLog
+        | where TimeGenerated > ago(Window)
+        | where RequestClientApplication startswith "agent-zero/"
+        | summarize Requests=count(), Timestamp=min(TimeGenerated) by DeviceName=SourceIP, UA=RequestClientApplication
+        | project Timestamp, DeviceName, Signal="Agent Zero user agent through the proxy", Detail=strcat(UA, " x", Requests))
+| order by Timestamp desc

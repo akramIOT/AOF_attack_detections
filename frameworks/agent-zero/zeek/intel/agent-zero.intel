@@ -1,0 +1,3 @@
+#fields	indicator	indicator_type	meta.source	meta.desc	meta.url
+c1938a2903529c6fe7d86fc768bd953f9864ea14d7b0fe95a714669f64c896fc	Intel::FILE_HASH	threatdefence-agent-zero	Agent Zero medium: Agent Zero web UI favicon.svg (Agent Zero operators)	https://github.com/agent0ai/agent-zero
+agent-zero/	Intel::SOFTWARE	threatdefence-agent-zero	Agent Zero low: Agent Zero's user agent prefix for its own OpenAI OAuth calls (plugins/_oauth/helpers/codex.py:607) (Agent Zero operators)	https://github.com/agent0ai/agent-zero

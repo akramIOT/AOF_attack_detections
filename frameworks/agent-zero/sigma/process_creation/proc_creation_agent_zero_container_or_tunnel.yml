@@ -1,0 +1,27 @@
+title: Agent Zero Container, UI or Tunnel Started
+id: 454f6966-95ee-57f4-9ab3-d7d6798ab637
+status: experimental
+description: |
+    Detects the Agent Zero image being run, its UI starting inside the container, and its tunnel server that publishes the
+    UI to the internet. Agent Zero ships a hacker profile on a Kali base; GTIG reported threat-actor experimentation with it.
+references:
+    - https://github.com/agent0ai/agent-zero
+    - https://cloud.google.com/blog/topics/threat-intelligence/artex-and-friends-enter-agentic-offensive-frameworks
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.execution
+    - attack.t1059
+logsource:
+    category: process_creation
+detection:
+    selection:
+        CommandLine|contains:
+            - 'agent0ai/agent-zero'
+            - 'self_update_manager.py docker-run-ui'
+            - '/a0/run_tunnel.py'
+    condition: selection
+falsepositives:
+    - Developers and researchers running Agent Zero
+level: low
