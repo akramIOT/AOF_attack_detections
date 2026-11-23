@@ -1,0 +1,33 @@
+title: Cairn Agent Worker or Dispatcher Command Line
+id: 47a4767c-bd74-5162-82ff-286d6b159e35
+status: experimental
+description: |
+    Detects command lines that only Cairn produces: the Codex worker's model_provider="cairn" override, the Pi worker's
+    --provider cairn and /tmp/cairn-pi/ agent folder, the dispatcher and server entry points, and the cairn-dispatch-
+    worker containers.
+references:
+    - https://github.com/oritera/Cairn
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.execution
+    - attack.t1059.004
+logsource:
+    product: linux
+    category: process_creation
+detection:
+    selection:
+        CommandLine|contains:
+            - 'model_provider="cairn"'
+            - 'model_providers.cairn.base_url'
+            - '--provider cairn'
+            - '/tmp/cairn-pi/'
+            - '/tmp/cairn-prompts/'
+            - 'cairn dispatch --config'
+            - 'cairn-dispatch-'
+            - 'cairn-worker-container'
+    condition: selection
+falsepositives:
+    - Authorized red team use of Cairn
+level: high

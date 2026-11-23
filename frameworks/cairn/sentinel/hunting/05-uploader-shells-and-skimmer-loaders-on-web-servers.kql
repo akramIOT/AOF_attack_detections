@@ -1,0 +1,38 @@
+// Uploader web shells and skimmer loaders written by the web server
+// AOF attack detections by ThreatDefence (Cairn). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting. Test and baseline before alerting.
+// From public research on Cairn operations. NorForge's AIA0001 cluster set its goal as an uploader shell: an HTML upload
+// form plus move_uploaded_file, explicitly not a command shell. AIA0002 asked for a shell "in a hidden directory deep
+// inside" named "something normal like confirm.php". Gambit's operator, using Cairn for exploitation, appended a skimmer
+// loader, new Function(atob('<7 junk chars><base64>'.slice(7)))(), to the end of jQuery and Bootstrap files the site
+// already served and restored the original timestamps, and at one retailer left a cron job in the JBoss log folder that
+// re-appended the skimmer every two minutes after each redeploy.
+// File events cannot see content, so this hunt looks for the shape: a web or database process writing a script or a
+// library file into the web root, an innocuous name in a deep folder, and crontab entries written by the web user.
+
+let Window = 30d;
+let WebProcs = dynamic(["php-fpm", "php", "php-cgi", "php-cgi.exe", "httpd", "apache2", "nginx", "w3wp.exe", "java", "java.exe",
+    "tomcat9", "node", "node.exe", "python3", "mysqld", "sqlservr.exe"]);
+let WebRoots = dynamic(["/var/www/", "/usr/share/nginx/", "/srv/", "/home/", "/opt/", @"\inetpub\", @"\htdocs\", "/webapps/", "/htdocs/", "/public_html/"]);
+union isfuzzy=true
+    (DeviceFileEvents
+        | where Timestamp > ago(Window)
+        | where ActionType in ("FileCreated", "FileModified", "FileRenamed")
+        | where tolower(InitiatingProcessFileName) in (WebProcs) and FolderPath has_any (WebRoots)
+        | extend Kind = case(
+            FileName matches regex @"(?i)^(confirm|confirmation|checkout_confirm|config\.inc|wp-conf|cache|upload)\w*\.(php|phtml|jsp|aspx)$", "innocuous script name",
+            FileName endswith ".php" or FileName endswith ".phtml" or FileName endswith ".jsp" or FileName endswith ".aspx", "script written by the web process",
+            FileName matches regex @"(?i)(jquery|bootstrap|require|vendor|bundle|app|main)[\w.-]*\.js$", "served JavaScript library modified",
+            "")
+        | where isnotempty(Kind)
+        | extend Depth = array_length(split(FolderPath, "/")) + array_length(split(FolderPath, @"\")) - 1
+        | project Timestamp, DeviceName, Kind, Path=FolderPath, Depth, Actor=InitiatingProcessFileName,
+            Detail=InitiatingProcessCommandLine),
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where FileName in~ ("crontab", "bash", "sh") and ProcessCommandLine has "crontab"
+        | where InitiatingProcessAccountName in~ ("www-data", "apache", "nginx", "jboss", "tomcat", "wildfly", "nobody")
+            or InitiatingProcessFileName in~ ("php-fpm", "php", "java", "httpd", "apache2", "nginx")
+        | project Timestamp, DeviceName, Kind="crontab changed by the web user", Path=ProcessCommandLine, Depth=0,
+            Actor=InitiatingProcessFileName, Detail=InitiatingProcessCommandLine)
+| order by Timestamp desc

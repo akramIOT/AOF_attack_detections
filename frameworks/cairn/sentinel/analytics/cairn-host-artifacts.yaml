@@ -1,0 +1,33 @@
+id: 269897d6-6c7a-5626-87ed-16e65bcda992
+name: Cairn dispatcher, server or worker artifacts on a host
+description: |
+  A process or file carried a marker only Cairn creates: cairn serve / cairn dispatch, a cairn-dispatch-<project>
+  worker container, the /tmp/cairn-prompts/ task snapshots, the /tmp/cairn-pi/ provider keys or the tsec-actions skill
+  copied from the Tencent competition setup.
+  AOF attack detections by ThreatDefence (Cairn): https://github.com/ThreatDefence/AOF_attack_detections
+severity: High
+requiredDataConnectors:
+  - connectorId: MicrosoftThreatProtection
+    dataTypes: []
+queryFrequency: 1h
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - Execution
+  - CommandAndControl
+relevantTechniques:
+  - T1059
+  - T1219
+query: |
+  union isfuzzy=true
+      (DeviceProcessEvents
+          | where ProcessCommandLine has_any ("cairn serve", "cairn dispatch", "cairn-dispatch-", "cairn-worker-container")
+              or ProcessCommandLine contains "/tmp/cairn-pi/" or ProcessCommandLine contains "/tmp/cairn-prompts/"
+          | project TimeGenerated, DeviceName, Detail=ProcessCommandLine, Kind="process"),
+      (DeviceFileEvents
+          | where FolderPath contains "/tmp/cairn-prompts/" or FolderPath contains "/tmp/cairn-pi/" or FolderPath contains "/skills/tsec-actions/"
+          | project TimeGenerated, DeviceName, Detail=FolderPath, Kind="file")
+  | summarize Events=count(), Details=make_set(Detail, 10), Kinds=make_set(Kind), FirstSeen=min(TimeGenerated) by DeviceName
+version: 1.0.0
+kind: Scheduled

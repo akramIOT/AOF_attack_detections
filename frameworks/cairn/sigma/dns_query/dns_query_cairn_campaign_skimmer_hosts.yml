@@ -1,0 +1,35 @@
+title: DNS Query for Skimmer or C2 Hosts of the Hermes, Strix and Cairn Card-Theft Campaign
+id: e47416c6-ec5f-563e-9c1e-c92ae41e141f
+status: experimental
+description: |
+    Detects lookups of the skimmer, C2 and console domains Gambit Security recovered from a financially motivated operator
+    who used Strix for discovery, Cairn for exploitation and Hermes for orchestration against online retailers.
+references:
+    - https://gambit.security/blog-posts/autonomous-ai-agents-online-retailers-25-a-company
+    - https://github.com/ThreatDefence/AOF_attack_detections
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.command-and-control
+    - attack.t1071.004
+    - attack.collection
+    - attack.t1056
+logsource:
+    category: dns_query
+detection:
+    selection:
+        QueryName|endswith:
+            - 'medbooksource.com'
+            - 'traffic-analyzer.net'
+            - 'b8t.shop'
+            - 'netlfjs.com'
+            - 'x1opay.co'
+            - 'static-js.com'
+            - 'js-static.com'
+            - 'jsnetlify.com'
+            - 'netlifyjs.com'
+            - 'newssjs.com'
+    condition: selection
+falsepositives:
+    - None expected
+level: high

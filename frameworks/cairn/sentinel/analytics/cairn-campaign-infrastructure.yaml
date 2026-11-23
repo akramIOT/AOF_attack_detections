@@ -1,0 +1,42 @@
+id: 0e6b86db-26d7-5ad4-8d59-b592d91b7619
+name: Traffic to or from published Cairn campaign infrastructure
+description: |
+  A connection, DNS query, sign-in or web request involved an address or domain published for Cairn operations:
+  JPCERT/CC Case E, NorForge AIA0002 staging servers, or the staging, C2 and skimmer hosts Gambit Security recovered from
+  an operator using Hermes, Strix and Cairn. Addresses are reassigned: check the review_by date in iocs/indicators.csv.
+  AOF attack detections by ThreatDefence (Cairn): https://github.com/ThreatDefence/AOF_attack_detections
+severity: Medium
+requiredDataConnectors:
+  - connectorId: CefAma
+    dataTypes: []
+  - connectorId: AzureActiveDirectory
+    dataTypes: []
+  - connectorId: DNS
+    dataTypes: []
+  - connectorId: MicrosoftThreatProtection
+    dataTypes: []
+queryFrequency: 1h
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - CommandAndControl
+  - Exfiltration
+  - InitialAccess
+relevantTechniques:
+  - T1071
+  - T1041
+  - T1190
+query: |
+  let CairnIPs = dynamic(["199.247.25.25", "199.247.27.2", "31.59.92.155", "31.56.206.187", "38.244.50.120", "46.8.227.73", "64.44.24.195", "94.183.184.98", "94.183.184.254", "95.182.99.112", "176.65.144.71", "155.254.22.215", "209.126.4.170", "213.21.239.62", "172.245.224.188", "172.245.89.137"]);
+  let CairnDomains = dynamic(["medbooksource.com", "traffic-analyzer.net", "b8t.shop", "cdn.netlfjs.com", "x1opay.co", "static-js.com", "cdn.js-static.com", "js-static.com", "jsnetlify.com", "netlifyjs.com", "newssjs.com"]);
+  union isfuzzy=true
+      (CommonSecurityLog | where SourceIP in (CairnIPs) or DestinationIP in (CairnIPs) or DestinationHostName has_any (CairnDomains)
+          | project TimeGenerated, Source="CommonSecurityLog", Indicator=coalesce(DestinationHostName, DestinationIP), Peer=SourceIP),
+      (DnsEvents | where Name has_any (CairnDomains) | project TimeGenerated, Source="DnsEvents", Indicator=Name, Peer=ClientIP),
+      (DeviceNetworkEvents | where RemoteIP in (CairnIPs) or RemoteUrl has_any (CairnDomains)
+          | project TimeGenerated, Source="DeviceNetworkEvents", Indicator=coalesce(RemoteUrl, RemoteIP), Peer=DeviceName),
+      (SigninLogs | where IPAddress in (CairnIPs) | project TimeGenerated, Source="SigninLogs", Indicator=IPAddress, Peer=UserPrincipalName)
+  | summarize Events=count(), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated) by Source, Indicator, Peer
+version: 1.0.0
+kind: Scheduled

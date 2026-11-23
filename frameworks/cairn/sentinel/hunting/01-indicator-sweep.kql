@@ -1,0 +1,32 @@
+// Indicator sweep
+// AOF attack detections by ThreatDefence (Cairn). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Microsoft Sentinel and Defender XDR advanced hunting. Test and baseline before alerting.
+// Every address and domain published for Cairn operations so far: JPCERT/CC Case E (Cairn, CyberStrikeAI and ARTEX
+// attacks on Japanese web apps and WSUS servers), NorForge's AIA0002 staging servers, Scutum's AI-agent sources and the
+// staging, C2 and skimmer infrastructure Gambit Security recovered from an operator running Hermes, Strix and Cairn.
+// Seven of the JPCERT/CC addresses match the partly redacted addresses of NorForge's AIA0001 Cairn panels on port 8000.
+// Addresses are VPS and hosting space that gets reassigned, so check each hit's date against the review_by column in
+// iocs/indicators.csv. Hunt from July 1, 2026, the start of the Gambit campaign.
+
+let CairnIPs = dynamic([
+    "199.247.25.25","199.247.27.2","31.59.92.155","31.56.206.187","38.244.50.120",
+    "46.8.227.73","64.44.24.195","94.183.184.98","94.183.184.254","95.182.99.112",
+    "176.65.144.71","38.54.56.121","185.196.220.130","192.236.229.229","155.254.22.215",
+    "209.126.4.170","213.21.239.62","172.245.224.188","172.245.89.137"]);
+let CairnDomains = dynamic([
+    "medbooksource.com","traffic-analyzer.net","b8t.shop","cdn.netlfjs.com",
+    "x1opay.co","static-js.com","cdn.js-static.com","js-static.com",
+    "jsnetlify.com","netlifyjs.com","newssjs.com"]);
+union isfuzzy=true
+    (SigninLogs | project TimeGenerated, Source="EntraSignIn", IP=IPAddress, Detail=UserPrincipalName, Extra=UserAgent),
+    (AADNonInteractiveUserSignInLogs | project TimeGenerated, Source="EntraNonInteractive", IP=IPAddress, Detail=UserPrincipalName, Extra=UserAgent),
+    (CommonSecurityLog | project TimeGenerated, Source="WebOrProxy", IP=SourceIP, Detail=RequestURL, Extra=DestinationIP),
+    (W3CIISLog | project TimeGenerated, Source="IIS", IP=cIP, Detail=csUriStem, Extra=csUserAgent),
+    (DeviceNetworkEvents | project TimeGenerated=Timestamp, Source="DeviceNetwork", IP=RemoteIP, Detail=RemoteUrl, Extra=DeviceName),
+    (DnsEvents | project TimeGenerated, Source="DNS", IP=ClientIP, Detail=Name, Extra=IPAddresses),
+    (AWSCloudTrail | project TimeGenerated, Source="CloudTrail", IP=SourceIpAddress, Detail=EventName, Extra=UserAgent)
+| where TimeGenerated >= datetime(2026-07-01)
+| where IP in (CairnIPs) or Extra in (CairnIPs) or Detail has_any (CairnDomains)
+| summarize Events=count(), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated), Samples=make_set(Detail, 10)
+    by Source, IP, Extra
+| order by FirstSeen asc

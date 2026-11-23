@@ -1,0 +1,20 @@
+# AOF attack detections by ThreatDefence: Cairn
+# https://github.com/ThreatDefence/AOF_attack_detections
+# Suricata 7 and 8. SID range 9727001-9727199. Indicator-based IP rules live in cairn-ip.rules (generated).
+# HTTP rules need cleartext HTTP or TLS decryption. TLS SNI and DNS rules work on encrypted traffic.
+
+# --- An exposed Cairn server (unauthenticated, port 8000 by default): scan or internal-sensor fingerprint ---
+alert http any any -> any any (msg:"TD Cairn server OpenAPI description in response"; flow:established,to_client; http.response_body; content:"Fact-graph based collaborative exploration protocol"; fast_pattern; classtype:policy-violation; sid:9727001; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family Cairn;)
+alert http any any -> any any (msg:"TD Cairn server API project list requested on port 8000"; flow:established,to_server; http.uri; content:"/projects"; startswith; http.host; content:":8000"; classtype:policy-violation; sid:9727002; rev:1; metadata:created_at 2026_11_21, confidence Low, malware_family Cairn;)
+alert http any any -> any any (msg:"TD Cairn dispatcher intent heartbeat"; flow:established,to_server; http.method; content:"POST"; http.uri; content:"/projects/"; content:"/intents/"; distance:0; content:"/heartbeat"; distance:0; endswith; classtype:policy-violation; sid:9727003; rev:1; metadata:created_at 2026_11_21, confidence Medium, malware_family Cairn;)
+
+# --- Cairn task prompts inside cleartext or decrypted model requests (AI gateways, TLS-inspecting proxies) ---
+alert http $HOME_NET any -> any any (msg:"TD Cairn anti-refusal task prompt in model request"; flow:established,to_server; http.request_body; content:"under no circumstances should you reject"; fast_pattern; content:"policy_refusal"; classtype:policy-violation; sid:9727020; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family Cairn;)
+alert http $HOME_NET any -> any any (msg:"TD Cairn conclude-phase prompt in model request"; flow:established,to_server; http.request_body; content:"This is the conclude phase"; fast_pattern; content:"Current Intent"; classtype:policy-violation; sid:9727021; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family Cairn;)
+
+# --- Skimmer and C2 hosts of the Hermes, Strix and Cairn card-theft campaign (Gambit Security) ---
+alert dns $HOME_NET any -> any any (msg:"TD Cairn campaign skimmer or C2 domain lookup"; dns.query; pcre:"/(^|\.)(medbooksource\.com|traffic-analyzer\.net|b8t\.shop|netlfjs\.com|x1opay\.co|static-js\.com|js-static\.com|jsnetlify\.com|netlifyjs\.com|newssjs\.com)$/i"; classtype:trojan-activity; sid:9727030; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family Cairn;)
+alert tls $HOME_NET any -> any any (msg:"TD Cairn campaign skimmer or C2 domain in TLS SNI"; tls.sni; pcre:"/(^|\.)(medbooksource\.com|traffic-analyzer\.net|b8t\.shop|netlfjs\.com|x1opay\.co|static-js\.com|js-static\.com|jsnetlify\.com|netlifyjs\.com|newssjs\.com)$/i"; classtype:trojan-activity; sid:9727031; rev:1; metadata:created_at 2026_11_21, confidence High, malware_family Cairn;)
+alert http any any -> any any (msg:"TD Skimmer loader new Function(atob(...).slice(7)) in served JavaScript"; flow:established,to_client; http.response_body; content:"new Function(atob("; fast_pattern; content:".slice(7)"; distance:0; within:600; classtype:trojan-activity; sid:9727032; rev:1; metadata:created_at 2026_11_21, confidence Medium, malware_family Cairn;)
+
+# --- WSUS administration services reached from outside (JPCERT/CC Case E) ---

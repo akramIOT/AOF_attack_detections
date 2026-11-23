@@ -1,0 +1,37 @@
+// Cairn server, dispatcher and worker containers on a host you monitor
+// AOF attack detections by ThreatDefence (Cairn). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Defender XDR advanced hunting. Test before alerting.
+// From the Cairn source code. Someone running Cairn on your own hosts is an authorized tester, an insider or an intruder.
+//  - Server: "cairn serve" (uvicorn, FastAPI) on port 8000, bound to 0.0.0.0 by docker-compose, with no authentication
+//    on any route (cli.py:17-18, docker-compose.yaml, server/app.py). Data in ~/.local/share/cairn/cairn.db.
+//  - Dispatcher: "cairn dispatch --config dispatch.yaml", with the Docker socket mounted.
+//  - Workers: one container per project named cairn-dispatch-<project>, started as "sleep infinity" with host networking
+//    from ghcr.io/oritera/cairn-worker-container (dispatcher/runtime/containers.py:20-60).
+//  - Files: task prompts as /tmp/cairn-prompts/<phase>-<12 hex>/graph.yaml (dispatcher/tasks/common.py:17), Pi
+//    provider keys in /tmp/cairn-pi/<worker>/models.json, and the Tencent competition skill tsec-actions in the workspace.
+// Container names, paths and flags need a code change to remove. The port and the compose file are easy to change.
+
+let Window = 30d;
+union isfuzzy=true
+    (DeviceProcessEvents
+        | where Timestamp > ago(Window)
+        | where ProcessCommandLine has_any ("cairn serve", "cairn dispatch", "cairn-dispatch-", "cairn-worker-container",
+                "--startup-healthcheck-only", "dispatch.local.example.yaml")
+            or (ProcessCommandLine contains "uv run" and ProcessCommandLine contains "--project cairn")
+            or ProcessCommandLine contains "/tmp/cairn-pi/" or ProcessCommandLine contains "/tmp/cairn-prompts/"
+            or ProcessCommandLine contains "TSEC_AGENT_TOKEN"
+        | project Timestamp, DeviceName, Signal="process", Detail=substring(ProcessCommandLine, 0, 300),
+            Actor=InitiatingProcessFileName, Account=AccountName),
+    (DeviceFileEvents
+        | where Timestamp > ago(Window)
+        | where FolderPath contains "/tmp/cairn-prompts/" or FolderPath contains "/tmp/cairn-pi/"
+            or FolderPath contains "/skills/tsec-actions/" or (FileName == "cairn.db" and FolderPath contains "/share/cairn/")
+        | project Timestamp, DeviceName, Signal="file", Detail=FolderPath, Actor=InitiatingProcessFileName,
+            Account=InitiatingProcessAccountName),
+    (DeviceNetworkEvents
+        | where Timestamp > ago(Window)
+        | where ActionType == "ListeningConnectionCreated" and LocalPort == 8000
+            and (InitiatingProcessCommandLine has "cairn" or InitiatingProcessCommandLine has "uvicorn")
+        | project Timestamp, DeviceName, Signal="server listening on 8000", Detail=InitiatingProcessCommandLine,
+            Actor=InitiatingProcessFileName, Account=InitiatingProcessAccountName)
+| order by Timestamp desc

@@ -1,0 +1,45 @@
+// The Cairn worker toolchain seen from one source
+// AOF attack detections by ThreatDefence (Cairn). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Microsoft Sentinel. Test and baseline before alerting.
+// From the Cairn source code. The worker image is Kali with kali-linux-headless plus pinned extras: nuclei 3.7.1,
+// katana 1.5.0, dalfox 2.12.0, kerbrute 1.0.3, cloudfox 2.0.1, naabu, nikto, dirsearch, netexec, sqlmap from Kali,
+// Playwright with headless Chromium, the AWS, Tencent Cloud and Alibaba Cloud CLIs, and the Claude Code, Codex and Pi
+// agents (container/Dockerfile). Kali's ffuf identifies as "Fuzz Faster U Fool v2.1.0-dev", the string Scutum saw in
+// AI-agent attacks in the Japanese breach wave, mixed with curl, Chrome and Googlebot strings.
+// Workers share the host's network (network_mode: host), so every tool leaves from the same address unless the operator
+// sends it through a proxy. Three or more of these clients from one address in an hour is a lead; each user agent can
+// be changed with a flag, and nuclei and katana randomize theirs by default.
+
+let Window = 14d;
+let Clients = (ua:string) { case(
+    ua contains "Claude-User (claude-code/", "Claude Code page reader",
+    ua contains "Fuzz Faster U Fool v2.1.0-dev", "Kali ffuf",
+    ua contains "Fuzz Faster U Fool", "ffuf",
+    ua startswith "sqlmap/", "sqlmap",
+    ua contains "Nikto", "nikto",
+    ua contains "WPScan", "wpscan",
+    ua contains "Nmap Scripting Engine", "nmap NSE",
+    ua contains "HeadlessChrome", "headless Chromium",
+    ua startswith "aws-cli/", "AWS CLI",
+    ua contains "TencentCloud" or ua contains "tccli", "Tencent Cloud CLI",
+    ua contains "aliyun", "Alibaba Cloud CLI",
+    ua startswith "curl/", "curl",
+    ua startswith "python-requests/" or ua startswith "Python-urllib/", "Python clients",
+    ua contains "Googlebot" and ua !contains "+http://www.google.com/bot.html", "fake Googlebot",
+    "") };
+union isfuzzy=true
+    (CommonSecurityLog | where TimeGenerated > ago(Window) and isnotempty(RequestClientApplication)
+        | project TimeGenerated, Src=SourceIP, Host=DestinationHostName, UA=RequestClientApplication),
+    (W3CIISLog | where TimeGenerated > ago(Window)
+        | project TimeGenerated, Src=cIP, Host=csHost, UA=replace_string(csUserAgent, "+", " "))
+| where not(ipv4_is_private(Src))
+| extend Client = Clients(UA)
+| where isnotempty(Client)
+| summarize Requests=count(), Clients=dcount(Client), ClientList=make_set(Client), Hosts=make_set(Host, 10),
+    SampleUAs=make_set(UA, 10) by Src, Hour=bin(TimeGenerated, 1h)
+| where Clients >= 3
+| extend Specific = set_intersect(ClientList, dynamic(["Claude Code page reader", "Kali ffuf", "fake Googlebot"]))
+| summarize Hours=count(), TotalRequests=sum(Requests), MaxClients=max(Clients), ClientList=make_set(ClientList),
+    Specific=make_set(Specific), Hosts=make_set(Hosts, 20), SampleUAs=make_set(SampleUAs, 20),
+    FirstSeen=min(Hour), LastSeen=max(Hour) by Src
+| order by array_length(Specific) desc, MaxClients desc

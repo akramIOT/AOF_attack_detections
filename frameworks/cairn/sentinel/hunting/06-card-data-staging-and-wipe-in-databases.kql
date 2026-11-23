@@ -1,0 +1,28 @@
+// Card data staged, dumped and wiped in e-commerce databases
+// AOF attack detections by ThreatDefence (Cairn). Source: https://github.com/ThreatDefence/AOF_attack_detections
+// Example hunt for Microsoft Sentinel with Azure Database for MySQL audit logs. Adapt to your database audit source.
+// From public research. Gambit's operator, using Cairn for exploitation, decrypted Magento card data (cc_number_enc),
+// dumped sales_flat_order_payment and sales_flat_quote_payment, then emptied their serialized payment columns in batches,
+// following a skill section titled "Database Wipe After Extraction". At a second victim the agent created ZQ-prefixed
+// staging tables inside the database, and its cleanup dropped 180 tables whose names matched ZQ or Backup, including
+// backups the victim's own administrators had made.
+// Any read of the encrypted card column outside the application user, any bulk UPDATE of payment tables, and any CREATE
+// or DROP of ZQ-prefixed tables deserves a look. The table names are Magento 1 names; add your own platform's tables.
+
+let Window = 30d;
+let PaymentTables = dynamic(["sales_flat_order_payment", "sales_flat_quote_payment", "sales_order_payment", "quote_payment"]);
+AzureDiagnostics
+| where TimeGenerated > ago(Window)
+| where Category in ("MySqlAuditLogs", "MySqlSlowLogs") and isnotempty(sql_text_s)
+| extend Sql = tostring(sql_text_s)
+| extend Kind = case(
+    Sql matches regex @"(?i)\b(create|drop)\s+table\s+(if\s+(not\s+)?exists\s+)?`?zq", "ZQ staging table created or dropped",
+    Sql matches regex @"(?i)\bdrop\s+table\b" and Sql matches regex @"(?i)(zq|backup)", "bulk drop of ZQ or backup tables",
+    Sql has "cc_number_enc", "encrypted card column read",
+    Sql matches regex @"(?i)\bupdate\b" and Sql has_any (PaymentTables), "payment table updated",
+    Sql matches regex @"(?i)\b(select|into\s+outfile)\b" and Sql has_any (PaymentTables) and Sql matches regex @"(?i)(additional_information|additional_data|cc_)", "payment data selected",
+    "")
+| where isnotempty(Kind)
+| summarize Statements=count(), Kinds=make_set(Kind), Samples=make_set(substring(Sql, 0, 200), 10),
+    FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated) by Resource, User=tostring(user_s), Host=tostring(host_s)
+| order by array_length(Kinds) desc, Statements desc

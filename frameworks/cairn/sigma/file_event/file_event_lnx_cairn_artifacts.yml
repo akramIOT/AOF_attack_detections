@@ -1,0 +1,28 @@
+title: Cairn Task Snapshot, Pi Provider Key or Competition Skill Written
+id: 3bcec7f8-c193-525d-9b3f-aa20c3e369d8
+status: experimental
+description: |
+    Detects files Cairn writes on a worker host: graph.yaml task snapshots under /tmp/cairn-prompts/, the Pi worker's
+    models.json with the provider API key under /tmp/cairn-pi/, and the tsec-actions skill from the Tencent TCH
+    competition setup that operators' worker images still carry.
+references:
+    - https://github.com/oritera/Cairn
+    - https://norforge.com/blog/inside_cairn
+author: ThreatDefence
+date: 2026-11-21
+tags:
+    - attack.execution
+    - attack.t1059
+logsource:
+    product: linux
+    category: file_event
+detection:
+    selection:
+        TargetFilename|contains:
+            - '/tmp/cairn-prompts/'
+            - '/tmp/cairn-pi/'
+            - '/skills/tsec-actions/SKILL.md'
+    condition: selection
+falsepositives:
+    - Authorized red team use of Cairn
+level: high
